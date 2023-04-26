@@ -117,10 +117,6 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define SP_KEY_TURN_LEFT	GLUT_KEY_LEFT
 #define SP_KEY_TURN_RIGHT	GLUT_KEY_RIGHT
 
-#define SP_KEY_ZOOM_IN		GLUT_KEY_PAGE_UP
-#define SP_KEY_ZOOM_OUT		GLUT_KEY_PAGE_DOWN
-
-
 /******************************************************************************
  * GLUT Callback Prototypes
  ******************************************************************************/
@@ -132,6 +128,7 @@ void specialKeyPressed(int key, int x, int y);
 void keyReleased(unsigned char key, int x, int y);
 void specialKeyReleased(int key, int x, int y);
 void idle(void);
+void mouse(int button, int state, int x, int y);
 
 /******************************************************************************
  * Animation-Specific Function Prototypes (add your own here)
@@ -146,6 +143,9 @@ void diagnostics();
 void basicGround(void);
 void setCamera();
 
+int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo);
+
+
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
  ******************************************************************************/
@@ -155,6 +155,8 @@ int windowHeight = 1000;
 int worldDimensions[] = {200, 200, 200};
 Pos3 cameraPosition;
 int cameraZoomLevel = 0;
+GLdouble orthoLevel = 50.0;
+
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
@@ -188,6 +190,7 @@ void main(int argc, char **argv)
 	glutKeyboardUpFunc(keyReleased);
 	glutSpecialUpFunc(specialKeyReleased);
 	glutIdleFunc(idle);
+	glutMouseFunc(mouse);
 
 	// Record when we started rendering the very first frame (which should happen after we call glutMainLoop).
 	frameStartTime = (unsigned int)glutGet(GLUT_ELAPSED_TIME);
@@ -241,12 +244,7 @@ void reshape(int width, int h)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
-	//glOrtho(-200.0, 200.0, -200.0, 200.0, -2000.0, 2000.0);
-	if (!cameraZoomLevel)
-		glOrtho(-200.0, 200.0, -200.0, 200.0, -2000.0, 2000.0);
-	else
-		glOrtho(-50.0, 50.0, -50.0, 50.0, -500.0, 500.0); // Set the orthographic projection
-
+	glOrtho(-orthoLevel, orthoLevel, -orthoLevel, orthoLevel, -orthoLevel * 10.0, orthoLevel * 10.0);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -400,11 +398,11 @@ void keyReleased(unsigned char key, int x, int y)
 void specialKeyReleased(int key, int x, int y)
 {
 	switch (key) {
-	/*
-		Keyboard-Controlled Motion Handler - DON'T CHANGE THIS SECTION
+		/*
+			Keyboard-Controlled Motion Handler - DON'T CHANGE THIS SECTION
 
-		This works as per the motion keys in keyReleased.
-	*/
+			This works as per the motion keys in keyReleased.
+		*/
 	case SP_KEY_MOVE_UP:
 		motionKeyStates.MoveUp = KEYSTATE_UP;
 		keyboardMotion.Heave = (motionKeyStates.MoveDown == KEYSTATE_DOWN) ? MOTION_DOWN : MOTION_NONE;
@@ -422,30 +420,13 @@ void specialKeyReleased(int key, int x, int y)
 		keyboardMotion.Yaw = (motionKeyStates.TurnLeft == KEYSTATE_DOWN) ? MOTION_ANTICLOCKWISE : MOTION_NONE;
 		break;
 
-	case SP_KEY_ZOOM_IN:
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(-50.0, 50.0, -50.0, 50.0, -500.0, 500.0);
-		cameraZoomLevel = 1;
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-		break;
-	case SP_KEY_ZOOM_OUT:
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(-200.0, 200.0, -200.0, 200.0, -2000.0, 2000.0);
-		cameraZoomLevel = 0;
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-		break;
+		/*
+			Other Keyboard Functions (add any new special key controls here)
 
-	/*
-		Other Keyboard Functions (add any new special key controls here)
-
-		As per keyReleased, you only need to handle the key here if you want something
-		to happen when the user lets go. If you just want something to happen when the
-		key is first pressed, add you code to specialKeyPressed instead.
-	*/
+			As per keyReleased, you only need to handle the key here if you want something
+			to happen when the user lets go. If you just want something to happen when the
+			key is first pressed, add you code to specialKeyPressed instead.
+		*/
 	}
 }
 
@@ -476,6 +457,30 @@ void idle(void)
 	think(); // Update our simulated world before the next call to display().
 
 	glutPostRedisplay(); // Tell OpenGL there's a new frame ready to be drawn.
+}
+
+
+/* https://stackoverflow.com/questions/14378/using-the-mouse-scrollwheel-in-glut */
+void mouse(int button, int state, int x, int y)
+{
+	if (button == 3 && state == GLUT_UP)
+	{
+		if (orthoLevel > 1.0) orthoLevel -= 10.0;
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glOrtho(-orthoLevel, orthoLevel, -orthoLevel, orthoLevel, -orthoLevel*10.0, orthoLevel*10.0);
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+	}
+	else if (button == 4 && state == GLUT_UP)
+	{
+		if (orthoLevel < 1000.0) orthoLevel += 10.0;
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity();
+		glOrtho(-orthoLevel, orthoLevel, -orthoLevel, orthoLevel, -orthoLevel * 10.0, orthoLevel * 10.0);
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+	}
 }
 
 /******************************************************************************
@@ -570,7 +575,8 @@ void think(void)
 		heli.coordinates.x -= sin(heli.heading * PI / 180.0) * keyboardMotion.Surge * FRAME_TIME_SEC * 100.0;
 		heli.coordinates.z += cos(heli.heading * PI / 180.0) * keyboardMotion.Surge * FRAME_TIME_SEC * 100.0;
 
-		if (heli.pitch < 25.0 && heli.pitch > -25.0) heli.pitch += keyboardMotion.Surge;
+		if (keyboardMotion.Surge > 0 && heli.pitch < 25.0) heli.pitch += keyboardMotion.Surge;
+		if (keyboardMotion.Surge < 0 && heli.pitch > -25.0) heli.pitch += keyboardMotion.Surge;
 	}
 	else if (heli.pitch > 0.0001 || heli.pitch < -0.0001)
 	{
@@ -582,7 +588,8 @@ void think(void)
 	if (keyboardMotion.Sway != MOTION_NONE) {
 		heli.coordinates.x -= cos(heli.heading * PI / 180.0) * keyboardMotion.Sway * FRAME_TIME_SEC * 100.0f;
 		heli.coordinates.z -= sin(heli.heading * PI / 180.0) * keyboardMotion.Sway * FRAME_TIME_SEC * 100.0f;
-		if (heli.roll < 25.0 && heli.roll > -25.0) heli.roll += keyboardMotion.Sway;
+		if (keyboardMotion.Sway > 0 && heli.roll < 25.0) heli.roll += keyboardMotion.Sway;
+		if (keyboardMotion.Sway < 0 && heli.roll > -25.0) heli.roll += keyboardMotion.Sway;
 	}
 	else if (heli.roll > 0.0001 || heli.roll < -0.0001)
 	{
@@ -592,7 +599,12 @@ void think(void)
 	}
 
 	if (keyboardMotion.Heave != MOTION_NONE) {
-		heli.coordinates.y += 45.0f * FRAME_TIME_SEC * keyboardMotion.Heave;
+		GLdouble speed = 45.0;
+		if (checkCollision(heli.coordinates, heli.collisionBox, heli.collisionBox, heli.collisionBox))
+			if (keyboardMotion.Heave < 0)
+				speed = 0.0;
+		
+		heli.coordinates.y += speed * FRAME_TIME_SEC * keyboardMotion.Heave;
 	}
 
 	heli.rotorRotation += 25.0;
@@ -649,12 +661,12 @@ void diagnostics()
 	sprintf_s(heliX, 200, "x : %.2f", heli.coordinates.x);
 	sprintf_s(heliY, 200, "y : %.2f", heli.coordinates.y);
 	sprintf_s(heliZ, 200, "z : %.2f", heli.coordinates.z);
-	glTranslated(-50, 50, 0);
-	glRasterPos2f(2, -2);
+	glTranslated(-orthoLevel, orthoLevel, 0);
+	glRasterPos2f(orthoLevel / 20, -orthoLevel / 20);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliX);
-	glRasterPos2f(2, -5);
+	glRasterPos2f(orthoLevel / 20, -orthoLevel / 20 * 2);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliY);
-	glRasterPos2f(2, -8);
+	glRasterPos2f(orthoLevel / 20, -orthoLevel / 20 * 3);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliZ);
 
 	glPopMatrix();
@@ -664,7 +676,7 @@ void setCamera()
 {
 	GLdouble eye_x, eye_y, eye_z;
 	eye_x = heli.coordinates.x + sin(heli.heading * PI / 180.0) * 10.0;
-	eye_y = (heli.coordinates.y + 2.0);
+	eye_y = (heli.coordinates.y + 2.0) + sin(heli.pitch * PI / 180.0) *3.0;
 	eye_z = (heli.coordinates.z) + cos((heli.heading + 180) * PI / 180.0) * 10.0;
 
 	gluLookAt(
@@ -704,4 +716,31 @@ void basicGround(void)
 	glVertex3f(200.0f, 0.0f, -200.0f);
 	glEnd();
 	glPopMatrix();
+}
+
+/* 
+https://learnopengl.com/In-Practice/2D-Game/Collisions/Collision-detection 
+https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection
+*/
+int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo)
+{
+	/*int collisionX = heli->coordinates.x + heli->collisionBox.x >= -200.0f &&
+		-200.0f + 400.0f >= heli->coordinates.x;
+
+	int collisionY = heli->coordinates.y + heli->collisionBox.y >= 0.0 &&
+		0.0 + 0.0 >= heli->coordinates.y;
+
+	int collisionZ = heli->coordinates.z + heli->collisionBox.z >= -200.0f &&
+		-200.0f + 400.0f >= heli->coordinates.z;
+
+	return collisionX && collisionY && collisionZ;*/
+
+	return (
+		positionOne.x - (collisionBoxOne.x / 2.0) <= 200.0 &&
+		positionOne.x + (collisionBoxOne.x / 2.0) >= -200.0 &&
+		positionOne.y - (collisionBoxOne.y / 2.0) <= 0.0 &&
+		positionOne.y + (collisionBoxOne.y / 2.0) >= 0.0 &&
+		positionOne.z - (collisionBoxOne.z / 2.0) <= 200.0 &&
+		positionOne.z + (collisionBoxOne.z / 2.0) >= -200.0
+		);
 }

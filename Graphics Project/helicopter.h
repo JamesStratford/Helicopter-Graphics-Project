@@ -4,8 +4,9 @@
 typedef struct
 {
 	GLUquadric* quadric;
-	Pos3 coordinates;
 	GLdouble size;
+	Pos3 coordinates;
+	Pos3 collisionBox;
 	GLdouble rotorRotation;
 	GLint heading; // yaw
 	GLdouble pitch;

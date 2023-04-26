@@ -6,6 +6,12 @@ void initHelicopter(Helicopter* heli)
 {
 	heli->quadric = gluNewQuadric();
 	heli->size = 10.0;
+	heli->coordinates.y = heli->size;
+
+	heli->collisionBox.x = heli->size / 2.0;
+	heli->collisionBox.y = heli->size * 1.5;
+	heli->collisionBox.z = heli->size;
+
 	heli->heading = 0;
 	heli->rotorRotation = 0.0;
 }
