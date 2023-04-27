@@ -9,11 +9,17 @@ void initHelicopter(Helicopter* heli)
 	heli->coordinates.y = heli->size;
 
 	heli->collisionBox.x = heli->size / 2.0;
-	heli->collisionBox.y = heli->size * 1.5;
+	heli->collisionBox.y = heli->size * 1.45;
 	heli->collisionBox.z = heli->size;
 
-	heli->heading = 0;
+	heli->yaw = 0;
 	heli->rotorRotation = 0.0;
+	heli->rotorVelocity = 25.0;
+
+	heli->direction = 0;
+	heli->velocity = 0.0;
+	heli->strafeVelocity = 0.0;
+	heli->liftVelocity = 0.0;
 }
 
 void drawTopRotor(Helicopter* heli)
@@ -128,7 +134,7 @@ void drawHelicopter(Helicopter* heli)
 	glTranslated(heli->coordinates.x, heli->coordinates.y, heli->coordinates.z);
 
 	// Yaw
-	glRotated(-(GLdouble)heli->heading, 0.0, 1.0, 0.0);
+	glRotated(-(GLdouble)heli->yaw, 0.0, 1.0, 0.0);
 
 	// Pitch
 	glRotated(heli->pitch, 1.0, 0.0, 0.0);

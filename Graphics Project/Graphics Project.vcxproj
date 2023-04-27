@@ -21,10 +21,15 @@
   <ItemGroup>
     <ClCompile Include="animationcontroller-lights.c" />
     <ClCompile Include="helicopter.c" />
+    <ClCompile Include="texture-mapping.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helicopter.h" />
     <ClInclude Include="includes.h" />
+    <ClInclude Include="texture-mapping.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="desert_texture.jpg" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

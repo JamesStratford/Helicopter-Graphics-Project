@@ -8,12 +8,16 @@ typedef struct
 	Pos3 coordinates;
 	Pos3 collisionBox;
 	GLdouble rotorRotation;
-	GLint heading; // yaw
+	GLdouble rotorVelocity;
+	GLint yaw;
 	GLdouble pitch;
 	GLdouble roll;
-
+	GLint direction;
+	GLdouble velocity;
+	GLdouble strafeVelocity;
+	GLdouble liftVelocity;
 } Helicopter;
 
 
-void initHelicopter();
-void drawHelicopter();
+void initHelicopter(Helicopter* heli);
+void drawHelicopter(Helicopter* heli);

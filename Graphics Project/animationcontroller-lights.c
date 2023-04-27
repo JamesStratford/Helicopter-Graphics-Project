@@ -18,6 +18,7 @@
 #include <freeglut.h>
 #include <math.h>
 #include "helicopter.h"
+#include "texture-mapping.h"
 
  /******************************************************************************
   * Animation & Timing Setup
@@ -69,7 +70,7 @@ typedef struct {
  * Keyboard Input Handling Setup
  ******************************************************************************/
 
-// Represents the state of a single keyboard key.Represents the state of a single keyboard key.
+ // Represents the state of a single keyboard key.Represents the state of a single keyboard key.
 typedef enum {
 	KEYSTATE_UP = 0,	// Key is not pressed.
 	KEYSTATE_DOWN		// Key is pressed down.
@@ -90,7 +91,7 @@ typedef struct {
 // Current state of all keys used to control our "player-controlled" object's motion.
 motionkeys_t motionKeyStates = {
 	KEYSTATE_UP, KEYSTATE_UP, KEYSTATE_UP, KEYSTATE_UP,
-	KEYSTATE_UP, KEYSTATE_UP, KEYSTATE_UP, KEYSTATE_UP 
+	KEYSTATE_UP, KEYSTATE_UP, KEYSTATE_UP, KEYSTATE_UP
 };
 
 // How our "player-controlled" object should currently be moving, solely based on keyboard input.
@@ -134,7 +135,7 @@ void mouse(int button, int state, int x, int y);
  * Animation-Specific Function Prototypes (add your own here)
  ******************************************************************************/
 
-void main(int argc, char **argv);
+void main(int argc, char** argv);
 void init(void);
 void think(void);
 void initLights(void);
@@ -145,6 +146,9 @@ void setCamera();
 
 int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo);
 
+void thinkHelicopter();
+
+
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -152,11 +156,15 @@ int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos
 
 int windowWidth = 1000;
 int windowHeight = 1000;
-int worldDimensions[] = {200, 200, 200};
+int worldDimensions[] = { 200, 200, 200 };
 Pos3 cameraPosition;
 int cameraZoomLevel = 0;
 GLdouble orthoLevel = 50.0;
-
+int freeCam = 0;
+GLdouble freeCamYaw = 0.0;
+GLdouble freeCamPitch = 0.0;
+int freeCamMouseXStart = 0;
+int freeCamMouseYStart = 0;
 
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
@@ -167,7 +175,7 @@ Helicopter heli;
  * Entry Point (don't put anything except the main function here)
  ******************************************************************************/
 
-void main(int argc, char **argv)
+void main(int argc, char** argv)
 {
 	// Initialize the OpenGL window.
 	glutInit(&argc, argv);
@@ -214,10 +222,10 @@ void display(void)
 {
 	/*
 		TEMPLATE: REPLACE THIS COMMENT WITH YOUR DRAWING CODE
-		
+
 		Separate reusable pieces of drawing code into functions, which you can add
 		to the "Animation-Specific Functions" section below.
-		
+
 		Remember to add prototypes for any new functions to the "Animation-Specific
 		Function Prototypes" section near the top of this template.
 	*/
@@ -257,17 +265,17 @@ void keyPressed(unsigned char key, int x, int y)
 {
 	switch (tolower(key)) {
 
-	/*
-		Keyboard-Controlled Motion Handler - DON'T CHANGE THIS SECTION
+		/*
+			Keyboard-Controlled Motion Handler - DON'T CHANGE THIS SECTION
 
-		Whenever one of our movement keys is pressed, we do two things:
-		(1) Update motionKeyStates to record that the key is held down. We use
-			this later in the keyReleased callback.
-		(2) Update the relevant axis in keyboardMotion to set the new direction
-			we should be moving in. The most recent key always "wins" (e.g. if
-			you're holding down KEY_MOVE_LEFT then also pressed KEY_MOVE_RIGHT,
-			our object will immediately start moving right).
-	*/
+			Whenever one of our movement keys is pressed, we do two things:
+			(1) Update motionKeyStates to record that the key is held down. We use
+				this later in the keyReleased callback.
+			(2) Update the relevant axis in keyboardMotion to set the new direction
+				we should be moving in. The most recent key always "wins" (e.g. if
+				you're holding down KEY_MOVE_LEFT then also pressed KEY_MOVE_RIGHT,
+				our object will immediately start moving right).
+		*/
 	case KEY_MOVE_FORWARD:
 		motionKeyStates.MoveForward = KEYSTATE_DOWN;
 		keyboardMotion.Surge = MOTION_FORWARD;
@@ -285,14 +293,14 @@ void keyPressed(unsigned char key, int x, int y)
 		keyboardMotion.Sway = MOTION_RIGHT;
 		break;
 
-	/*
-		Other Keyboard Functions (add any new character key controls here)
+		/*
+			Other Keyboard Functions (add any new character key controls here)
 
-		Rather than using literals (e.g. "t" for spotlight), create a new KEY_
-		definition in the "Keyboard Input Handling Setup" section of this file.
-		For example, refer to the existing keys used here (KEY_MOVE_FORWARD,
-		KEY_MOVE_LEFT, KEY_EXIT, etc).
-	*/
+			Rather than using literals (e.g. "t" for spotlight), create a new KEY_
+			definition in the "Keyboard Input Handling Setup" section of this file.
+			For example, refer to the existing keys used here (KEY_MOVE_FORWARD,
+			KEY_MOVE_LEFT, KEY_EXIT, etc).
+		*/
 	case KEY_RENDER_FILL:
 		renderFillEnabled = !renderFillEnabled;
 		break;
@@ -309,11 +317,11 @@ void specialKeyPressed(int key, int x, int y)
 {
 	switch (key) {
 
-	/*
-		Keyboard-Controlled Motion Handler - DON'T CHANGE THIS SECTION
+		/*
+			Keyboard-Controlled Motion Handler - DON'T CHANGE THIS SECTION
 
-		This works as per the motion keys in keyPressed.
-	*/
+			This works as per the motion keys in keyPressed.
+		*/
 	case SP_KEY_MOVE_UP:
 		motionKeyStates.MoveUp = KEYSTATE_DOWN;
 		keyboardMotion.Heave = MOTION_UP;
@@ -331,14 +339,14 @@ void specialKeyPressed(int key, int x, int y)
 		keyboardMotion.Yaw = MOTION_CLOCKWISE;
 		break;
 
-	/*
-		Other Keyboard Functions (add any new special key controls here)
+		/*
+			Other Keyboard Functions (add any new special key controls here)
 
-		Rather than directly using the GLUT constants (e.g. GLUT_KEY_F1), create
-		a new SP_KEY_ definition in the "Keyboard Input Handling Setup" section of
-		this file. For example, refer to the existing keys used here (SP_KEY_MOVE_UP,
-		SP_KEY_TURN_LEFT, etc).
-	*/
+			Rather than directly using the GLUT constants (e.g. GLUT_KEY_F1), create
+			a new SP_KEY_ definition in the "Keyboard Input Handling Setup" section of
+			this file. For example, refer to the existing keys used here (SP_KEY_MOVE_UP,
+			SP_KEY_TURN_LEFT, etc).
+		*/
 	}
 }
 
@@ -349,19 +357,19 @@ void keyReleased(unsigned char key, int x, int y)
 {
 	switch (tolower(key)) {
 
-	/*
-		Keyboard-Controlled Motion Handler - DON'T CHANGE THIS SECTION
+		/*
+			Keyboard-Controlled Motion Handler - DON'T CHANGE THIS SECTION
 
-		Whenever one of our movement keys is released, we do two things:
-		(1) Update motionKeyStates to record that the key is no longer held down;
-			we need to know when we get to step (2) below.
-		(2) Update the relevant axis in keyboardMotion to set the new direction
-			we should be moving in. This gets a little complicated to ensure
-			the controls work smoothly. When the user releases a key that moves
-			in one direction (e.g. KEY_MOVE_RIGHT), we check if its "opposite"
-			key (e.g. KEY_MOVE_LEFT) is pressed down. If it is, we begin moving
-			in that direction instead. Otherwise, we just stop moving.
-	*/
+			Whenever one of our movement keys is released, we do two things:
+			(1) Update motionKeyStates to record that the key is no longer held down;
+				we need to know when we get to step (2) below.
+			(2) Update the relevant axis in keyboardMotion to set the new direction
+				we should be moving in. This gets a little complicated to ensure
+				the controls work smoothly. When the user releases a key that moves
+				in one direction (e.g. KEY_MOVE_RIGHT), we check if its "opposite"
+				key (e.g. KEY_MOVE_LEFT) is pressed down. If it is, we begin moving
+				in that direction instead. Otherwise, we just stop moving.
+		*/
 	case KEY_MOVE_FORWARD:
 		motionKeyStates.MoveForward = KEYSTATE_UP;
 		keyboardMotion.Surge = (motionKeyStates.MoveBackward == KEYSTATE_DOWN) ? MOTION_BACKWARD : MOTION_NONE;
@@ -379,16 +387,16 @@ void keyReleased(unsigned char key, int x, int y)
 		keyboardMotion.Sway = (motionKeyStates.MoveLeft == KEYSTATE_DOWN) ? MOTION_LEFT : MOTION_NONE;
 		break;
 
-	/*
-		Other Keyboard Functions (add any new character key controls here)
+		/*
+			Other Keyboard Functions (add any new character key controls here)
 
-		Note: If you only care when your key is first pressed down, you don't have to
-		add anything here. You only need to put something in keyReleased if you care
-		what happens when the user lets go, like we do with our movement keys above.
-		For example: if you wanted a spotlight to come on while you held down "t", you
-		would need to set a flag to turn the spotlight on in keyPressed, and update the
-		flag to turn it off in keyReleased.
-	*/
+			Note: If you only care when your key is first pressed down, you don't have to
+			add anything here. You only need to put something in keyReleased if you care
+			what happens when the user lets go, like we do with our movement keys above.
+			For example: if you wanted a spotlight to come on while you held down "t", you
+			would need to set a flag to turn the spotlight on in keyPressed, and update the
+			flag to turn it off in keyReleased.
+		*/
 	}
 }
 
@@ -468,7 +476,7 @@ void mouse(int button, int state, int x, int y)
 		if (orthoLevel > 1.0) orthoLevel -= 10.0;
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		glOrtho(-orthoLevel, orthoLevel, -orthoLevel, orthoLevel, -orthoLevel*10.0, orthoLevel*10.0);
+		glOrtho(-orthoLevel, orthoLevel, -orthoLevel, orthoLevel, -orthoLevel * 10.0, orthoLevel * 10.0);
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 	}
@@ -481,6 +489,19 @@ void mouse(int button, int state, int x, int y)
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 	}
+
+	if (button == 1 && state == GLUT_DOWN)
+	{
+		freeCam = 1;
+	}
+	else if (button == 1 && state == GLUT_UP)
+	{
+		freeCam = 0;
+		freeCamPitch = 0;
+		freeCamYaw = 0;
+	}
+
+
 }
 
 /******************************************************************************
@@ -504,7 +525,7 @@ void init(void)
 	glLoadIdentity(); // Load the identity matrix
 
 	initLights();
-	
+
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
 	initHelicopter(&heli);
 }
@@ -563,57 +584,12 @@ void think(void)
 		Keyboard motion handler: complete this section to make your "player-controlled"
 		object respond to keyboard input.
 	*/
-	if (keyboardMotion.Yaw != MOTION_NONE) {
-		heli.heading -= keyboardMotion.Yaw;
-
-		if (heli.heading >= 360) heli.heading = 0;
-		if (heli.heading < 0) heli.heading = 360;
-
-		//heli.coordinates.z += 90.0f * FRAME_TIME_SEC * keyboardMotion.Yaw;
-	}
-	if (keyboardMotion.Surge != MOTION_NONE) {
-		heli.coordinates.x -= sin(heli.heading * PI / 180.0) * keyboardMotion.Surge * FRAME_TIME_SEC * 100.0;
-		heli.coordinates.z += cos(heli.heading * PI / 180.0) * keyboardMotion.Surge * FRAME_TIME_SEC * 100.0;
-
-		if (keyboardMotion.Surge > 0 && heli.pitch < 25.0) heli.pitch += keyboardMotion.Surge;
-		if (keyboardMotion.Surge < 0 && heli.pitch > -25.0) heli.pitch += keyboardMotion.Surge;
-	}
-	else if (heli.pitch > 0.0001 || heli.pitch < -0.0001)
-	{
-		// Approaching 0.0
-		// pitch *= (1.0 - halflifeRate)
-		heli.pitch *= (1.0 - 0.1);
-	}
-
-	if (keyboardMotion.Sway != MOTION_NONE) {
-		heli.coordinates.x -= cos(heli.heading * PI / 180.0) * keyboardMotion.Sway * FRAME_TIME_SEC * 100.0f;
-		heli.coordinates.z -= sin(heli.heading * PI / 180.0) * keyboardMotion.Sway * FRAME_TIME_SEC * 100.0f;
-		if (keyboardMotion.Sway > 0 && heli.roll < 25.0) heli.roll += keyboardMotion.Sway;
-		if (keyboardMotion.Sway < 0 && heli.roll > -25.0) heli.roll += keyboardMotion.Sway;
-	}
-	else if (heli.roll > 0.0001 || heli.roll < -0.0001)
-	{
-		// Approaching 0.0
-		// pitch *= (1.0 - halflifeRate)
-		heli.roll *= (1.0 - 0.1);
-	}
-
-	if (keyboardMotion.Heave != MOTION_NONE) {
-		GLdouble speed = 45.0;
-		if (checkCollision(heli.coordinates, heli.collisionBox, heli.collisionBox, heli.collisionBox))
-			if (keyboardMotion.Heave < 0)
-				speed = 0.0;
-		
-		heli.coordinates.y += speed * FRAME_TIME_SEC * keyboardMotion.Heave;
-	}
-
-	heli.rotorRotation += 25.0;
-	if (heli.rotorRotation > 360.0) heli.rotorRotation = 0.0;
+	thinkHelicopter();
 }
 
 /*
 	Initialise OpenGL lighting before we begin the render loop.
-	
+
 	Note (advanced): If you're using dynamic lighting (e.g. lights that move around, turn on or
 	off, or change colour) you may want to replace this with a drawLights function that gets called
 	at the beginning of display() instead of init().
@@ -626,23 +602,23 @@ void initLights(void)
 	GLfloat ambientLight[] = { 0, 0, 0, 1 };
 	GLfloat diffuseLight[] = { 1, 1, 1, 1 };
 	GLfloat specularLight[] = { 1, 1, 1, 1 };
-	
+
 	// Configure global ambient lighting.
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbient);
-	
+
 	// Configure Light 0.
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
-	
+
 	// Enable lighting
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
-	
+
 	// Make GL normalize the normal vectors we supply.
 	glEnable(GL_NORMALIZE);
-	
+
 	// Enable use of simple GL colours as materials.
 	glEnable(GL_COLOR_MATERIAL);
 }
@@ -662,11 +638,11 @@ void diagnostics()
 	sprintf_s(heliY, 200, "y : %.2f", heli.coordinates.y);
 	sprintf_s(heliZ, 200, "z : %.2f", heli.coordinates.z);
 	glTranslated(-orthoLevel, orthoLevel, 0);
-	glRasterPos2f(orthoLevel / 20, -orthoLevel / 20);
+	glRasterPos2d(orthoLevel / 20.0, -orthoLevel / 20.0);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliX);
-	glRasterPos2f(orthoLevel / 20, -orthoLevel / 20 * 2);
+	glRasterPos2d(orthoLevel / 20.0, -orthoLevel / 20.0 * 2.0);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliY);
-	glRasterPos2f(orthoLevel / 20, -orthoLevel / 20 * 3);
+	glRasterPos2d(orthoLevel / 20.0, -orthoLevel / 20.0 * 3.0);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliZ);
 
 	glPopMatrix();
@@ -675,9 +651,30 @@ void diagnostics()
 void setCamera()
 {
 	GLdouble eye_x, eye_y, eye_z;
-	eye_x = heli.coordinates.x + sin(heli.heading * PI / 180.0) * 10.0;
-	eye_y = (heli.coordinates.y + 2.0) + sin(heli.pitch * PI / 180.0) *3.0;
-	eye_z = (heli.coordinates.z) + cos((heli.heading + 180) * PI / 180.0) * 10.0;
+	if (!freeCam)
+	{
+		eye_x = heli.coordinates.x + sin(heli.yaw * PI / 180.0) * 10.0;
+		eye_y = (heli.coordinates.y + 2.0) + sin(heli.pitch * PI / 180.0) * 3.0;
+		eye_z = (heli.coordinates.z) + cos((heli.yaw + 180) * PI / 180.0) * 10.0;
+	}
+	else
+	{
+		POINT cursorPos;
+		GetCursorPos(&cursorPos);
+		if (freeCamPitch == 0 && freeCamYaw == 0)
+		{
+			freeCamYaw = heli.yaw;
+			freeCamPitch = heli.pitch;
+			freeCamMouseXStart = cursorPos.x;
+			freeCamMouseYStart = cursorPos.y;
+		}
+		freeCamYaw -= (freeCamMouseXStart - cursorPos.x) / 360.0;
+		freeCamPitch += (freeCamMouseYStart - cursorPos.y) / 360.0;
+
+		eye_x = heli.coordinates.x + sin(freeCamYaw * PI / 180.0) * 10.0;
+		eye_y = (heli.coordinates.y + 2.0) + sin(freeCamPitch * PI / 180.0) * 3.0;
+		eye_z = (heli.coordinates.z) + cos((freeCamYaw + 180) * PI / 180.0) * 10.0;
+	}
 
 	gluLookAt(
 		eye_x,
@@ -700,41 +697,60 @@ void setCamera()
   A simple ground plane in the XZ plane with vertex normals specified for lighting
   the top face of the ground. The bottom face is not lit.
 */
+GLint desert_tex;
 void basicGround(void)
 {
+	if (!desert_tex)
+		desert_tex = loadTexture("desert_texture.bmp", 5400, 3000);
+	glColor3f(1, 1, 1);
 	glPushMatrix();
-	glColor3f(0.0f, 1.0f, 0.0f); //pale green -- better to have a const
-	glBegin(GL_QUADS);
-	glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
-	glVertex3f(-200.0f, 0.0f, -200.0f);
-	glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
-	glVertex3f(-200.0f, 0.0f, 200.0f);
-	glColor3f(1.0f, 1.0f, 0.0f); //pale green -- better to have a const
-	glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
-	glVertex3f(200.0f, 0.0f, 200.0f);
-	glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
-	glVertex3f(200.0f, 0.0f, -200.0f);
-	glEnd();
+
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, desert_tex);
+
+	// map the texture to the quad
+
+			glPushMatrix();
+	for (int i = 0; i < 10; i++)
+	{
+		//glTranslated(0.0, 0.0, 400.0);
+		for (int k = 0; k < 10; k++)
+		{
+			glBegin(GL_QUADS);
+			glTexCoord2f(0.0f, 0.0f); glVertex3f(-200.0f, 0.0f, -200.0f);
+			glTexCoord2f(1.0f, 0.0f); glVertex3f(200.0f, 0.0f, -200.0f);
+			glTexCoord2f(1.0f, 1.0f); glVertex3f(200.0f, 0.0f, 200.0f);
+			glTexCoord2f(0.0f, 1.0f); glVertex3f(-200.0f, 0.0f, 200.0f);
+			glEnd();
+			glTranslated(400.0, 0.0, 0.0);
+		}
+		glTranslated(-400.0 * 10.0, 0.0, 400.0);
+	}
+			glPopMatrix();
+
+	glDisable(GL_TEXTURE_2D);
+
+	//glColor3f(0.0f, 1.0f, 0.0f); //pale green -- better to have a const
+	//glBegin(GL_QUADS);
+	//glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
+	//glVertex3f(-200.0f, 0.0f, -200.0f);
+	//glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
+	//glVertex3f(-200.0f, 0.0f, 200.0f);
+	//glColor3f(1.0f, 1.0f, 0.0f); //pale green -- better to have a const
+	//glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
+	//glVertex3f(200.0f, 0.0f, 200.0f);
+	//glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
+	//glVertex3f(200.0f, 0.0f, -200.0f);
+	//glEnd();
 	glPopMatrix();
 }
 
-/* 
-https://learnopengl.com/In-Practice/2D-Game/Collisions/Collision-detection 
+/*
+https://learnopengl.com/In-Practice/2D-Game/Collisions/Collision-detection
 https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection
 */
 int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo)
 {
-	/*int collisionX = heli->coordinates.x + heli->collisionBox.x >= -200.0f &&
-		-200.0f + 400.0f >= heli->coordinates.x;
-
-	int collisionY = heli->coordinates.y + heli->collisionBox.y >= 0.0 &&
-		0.0 + 0.0 >= heli->coordinates.y;
-
-	int collisionZ = heli->coordinates.z + heli->collisionBox.z >= -200.0f &&
-		-200.0f + 400.0f >= heli->coordinates.z;
-
-	return collisionX && collisionY && collisionZ;*/
-
 	return (
 		positionOne.x - (collisionBoxOne.x / 2.0) <= 200.0 &&
 		positionOne.x + (collisionBoxOne.x / 2.0) >= -200.0 &&
@@ -743,4 +759,101 @@ int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos
 		positionOne.z - (collisionBoxOne.z / 2.0) <= 200.0 &&
 		positionOne.z + (collisionBoxOne.z / 2.0) >= -200.0
 		);
+}
+
+void thinkHelicopter()
+{
+	int collidedWithTerrain = 0;
+	if (checkCollision(heli.coordinates, heli.collisionBox, heli.collisionBox, heli.collisionBox))
+	{
+		collidedWithTerrain = 1;
+		heli.pitch *= (1.0 - 0.1);
+		heli.velocity *= (1.0 - 0.25);
+
+		heli.roll *= (1.0 - 0.1);
+		heli.strafeVelocity *= (1.0 - 0.25);
+
+		heli.liftVelocity *= (1.0 - 0.75);
+		heli.rotorVelocity -= 0.05;
+		heli.rotorVelocity = max(heli.rotorVelocity, 0.0);
+	}
+	else
+	{
+		heli.rotorVelocity += 0.05;
+		heli.rotorVelocity = min(heli.rotorVelocity, 25.0);
+	}
+
+	if (keyboardMotion.Yaw != MOTION_NONE && !collidedWithTerrain) {
+		heli.yaw -= keyboardMotion.Yaw;
+
+		if (heli.yaw >= 360) heli.yaw = 0;
+		if (heli.yaw < 0) heli.yaw = 360;
+	}
+
+	if (keyboardMotion.Surge != MOTION_NONE && !collidedWithTerrain) {
+		if (heli.velocity <= 100.0 && heli.velocity >= -100.0)
+			heli.velocity += keyboardMotion.Surge * FRAME_TIME_SEC;
+
+		heli.direction = heli.yaw;
+
+
+		if (keyboardMotion.Surge > 0 && heli.pitch < 25.0) heli.pitch += keyboardMotion.Surge;
+		if (keyboardMotion.Surge < 0 && heli.pitch > -25.0) heli.pitch += keyboardMotion.Surge;
+	}
+	else
+	{
+		// Approaching 0.0
+		// pitch *= (1.0 - halflifeRate)
+		heli.pitch *= (1.0 - 0.1);
+		heli.velocity *= (1.0 - 0.01);
+	}
+
+	if (keyboardMotion.Sway != MOTION_NONE && !collidedWithTerrain) {
+
+		if (heli.strafeVelocity <= 100.0 && heli.strafeVelocity >= -100.0)
+			heli.strafeVelocity += keyboardMotion.Sway * FRAME_TIME_SEC;
+
+		heli.direction = heli.yaw;
+
+		if (keyboardMotion.Sway > 0 && heli.roll < 25.0) heli.roll += keyboardMotion.Sway;
+		if (keyboardMotion.Sway < 0 && heli.roll > -25.0) heli.roll += keyboardMotion.Sway;
+	}
+	else
+	{
+		heli.roll *= (1.0 - 0.1);
+		heli.strafeVelocity *= (1.0 - 0.01);
+	}
+
+	if (keyboardMotion.Heave != MOTION_NONE) {
+		if (heli.rotorVelocity < 15.0)
+		{
+			heli.rotorVelocity += 0.10;
+		}
+		else
+		{
+			if (heli.liftVelocity <= 45.0 && heli.liftVelocity >= -45.0)
+				heli.liftVelocity += keyboardMotion.Heave * FRAME_TIME_SEC;
+
+			if (checkCollision(heli.coordinates, heli.collisionBox, heli.collisionBox, heli.collisionBox))
+				if (keyboardMotion.Heave < 0)
+					heli.liftVelocity = 0.0;
+		}
+	}
+	else
+	{
+		heli.liftVelocity *= (1.0 - 0.1);
+	}
+
+	heli.coordinates.x -= sin(heli.direction * PI / 180.0) * heli.velocity;
+	heli.coordinates.z += cos(heli.direction * PI / 180.0) * heli.velocity;
+
+	heli.coordinates.x -= cos(heli.direction * PI / 180.0) * heli.strafeVelocity;
+	heli.coordinates.z -= sin(heli.direction * PI / 180.0) * heli.strafeVelocity;
+
+	heli.coordinates.y += heli.liftVelocity;
+
+
+
+	heli.rotorRotation += heli.rotorVelocity;
+	if (heli.rotorRotation > 360.0) heli.rotorRotation = 0.0;
 }
