@@ -24,6 +24,9 @@
     <ClCompile Include="texture-mapping.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="tex-obj-loader.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helicopter.h">
@@ -35,10 +38,8 @@
     <ClInclude Include="texture-mapping.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="desert_texture.jpg">
-      <Filter>Resource Files</Filter>
-    </Image>
+    <ClInclude Include="tex-obj-loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

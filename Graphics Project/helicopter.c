@@ -20,6 +20,8 @@ void initHelicopter(Helicopter* heli)
 	heli->velocity = 0.0;
 	heli->strafeVelocity = 0.0;
 	heli->liftVelocity = 0.0;
+
+	heli->texture = loadTexture("heli_texture.bmp", 612, 612);
 }
 
 void drawTopRotor(Helicopter* heli)
@@ -118,9 +120,12 @@ void drawFeet(Helicopter* heli)
 
 void drawBody(Helicopter* heli)
 {
-	glColor3f(0.4f, 0.4f, 0.4f);
+	//glColor3f(0.4f, 0.4f, 0.4f);
 	glPushMatrix();
-	glRotated(90.0, 0.0, 1.0, 0.0);
+	glRotated(270.0, 1.0, 0.0, 0.0);
+
+	glRotated(90.0, 0.0, 0.0, 1.0);
+
 	glScaled(1.0, 0.5, 0.5);
 	gluSphere(heli->quadric, heli->size, 32, 32);
 	glPopMatrix();
@@ -129,7 +134,11 @@ void drawBody(Helicopter* heli)
 void drawHelicopter(Helicopter* heli)
 {
 	renderFillEnabled ? gluQuadricDrawStyle(heli->quadric, GLU_FILL) : gluQuadricDrawStyle(heli->quadric, GLU_LINE);
+
 	glPushMatrix();
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, heli->texture);
+	gluQuadricTexture(heli->quadric, TRUE);
 
 	glTranslated(heli->coordinates.x, heli->coordinates.y, heli->coordinates.z);
 
@@ -141,7 +150,6 @@ void drawHelicopter(Helicopter* heli)
 
 	// Roll
 	glRotated(heli->roll, 0.0, 0.0, 1.0);
-
 
 	drawBody(heli);
 	drawFeet(heli);

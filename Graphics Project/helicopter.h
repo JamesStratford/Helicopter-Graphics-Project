@@ -16,6 +16,7 @@ typedef struct
 	GLdouble velocity;
 	GLdouble strafeVelocity;
 	GLdouble liftVelocity;
+	GLuint texture;
 } Helicopter;
 
 

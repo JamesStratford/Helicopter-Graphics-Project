@@ -19,6 +19,7 @@
 #include <math.h>
 #include "helicopter.h"
 #include "texture-mapping.h"
+#include "tex-obj-loader.h"
 
  /******************************************************************************
   * Animation & Timing Setup
@@ -147,6 +148,7 @@ void setCamera();
 int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo);
 
 void thinkHelicopter();
+void drawFog();
 
 
 
@@ -170,6 +172,7 @@ int freeCamMouseYStart = 0;
 int renderFillEnabled = 1;
 
 Helicopter heli;
+meshObject* zebra_obj;
 
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
@@ -218,6 +221,8 @@ void main(int argc, char** argv)
 	 world. Animation (moving or rotating things, responding to keyboard input,
 	 etc.) should only be performed within the think() function provided below.
  */
+
+
 void display(void)
 {
 	/*
@@ -234,9 +239,17 @@ void display(void)
 	glLoadIdentity();
 	diagnostics();
 	setCamera();
+	drawFog();
 
 	basicGround();
+
+	glPushMatrix();
+	glTranslated(0, 10, 0);
+	glScaled(10, 10, 10);
+	renderMeshObject(zebra_obj);
+	glPopMatrix();
 	drawHelicopter(&heli);
+
 
 	glutSwapBuffers();
 }
@@ -251,8 +264,9 @@ void reshape(int width, int h)
 	glViewport(0, 0, width, h);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
+	GLdouble aspect = (double)windowWidth / (double)windowHeight;
 
-	glOrtho(-orthoLevel, orthoLevel, -orthoLevel, orthoLevel, -orthoLevel * 10.0, orthoLevel * 10.0);
+	glOrtho(-orthoLevel * aspect, orthoLevel * aspect, -orthoLevel, orthoLevel, -orthoLevel * 10.0, max(orthoLevel * 10.0, 200.0));
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -471,21 +485,18 @@ void idle(void)
 /* https://stackoverflow.com/questions/14378/using-the-mouse-scrollwheel-in-glut */
 void mouse(int button, int state, int x, int y)
 {
-	if (button == 3 && state == GLUT_UP)
+	GLdouble aspect = (double)windowWidth / (double)windowHeight;
+	if (button == 3 || button == 4)
 	{
-		if (orthoLevel > 1.0) orthoLevel -= 10.0;
+		if (button == 3 && state == GLUT_UP)
+			if (orthoLevel > 1.0) orthoLevel -= 10.0;
+		if (button == 4 && state == GLUT_UP)
+			if (orthoLevel < 1000.0) orthoLevel += 10.0;
+
+		glViewport(0, 0, windowWidth, windowHeight);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		glOrtho(-orthoLevel, orthoLevel, -orthoLevel, orthoLevel, -orthoLevel * 10.0, orthoLevel * 10.0);
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
-	}
-	else if (button == 4 && state == GLUT_UP)
-	{
-		if (orthoLevel < 1000.0) orthoLevel += 10.0;
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(-orthoLevel, orthoLevel, -orthoLevel, orthoLevel, -orthoLevel * 10.0, orthoLevel * 10.0);
+		glOrtho(-orthoLevel * aspect, orthoLevel * aspect, -orthoLevel, orthoLevel, -orthoLevel * 10.0, max(orthoLevel * 10.0, 200.0));
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 	}
@@ -500,8 +511,6 @@ void mouse(int button, int state, int x, int y)
 		freeCamPitch = 0;
 		freeCamYaw = 0;
 	}
-
-
 }
 
 /******************************************************************************
@@ -520,6 +529,8 @@ void init(void)
 	glMatrixMode(GL_PROJECTION); // Select the projection matrix
 	glLoadIdentity(); // Load the identity matrix
 	//glOrtho(-30.0, 30.0, -30.0, 30.0, 0.1, 5000.0); // Set the orthographic projection
+	glEnable(GL_FOG);
+
 
 	glMatrixMode(GL_MODELVIEW); // Select the model view matrix
 	glLoadIdentity(); // Load the identity matrix
@@ -528,6 +539,7 @@ void init(void)
 
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
 	initHelicopter(&heli);
+	zebra_obj = loadMeshObject("zebra.obj");
 }
 
 /*
@@ -654,7 +666,7 @@ void setCamera()
 	if (!freeCam)
 	{
 		eye_x = heli.coordinates.x + sin(heli.yaw * PI / 180.0) * 10.0;
-		eye_y = (heli.coordinates.y + 2.0) + sin(heli.pitch * PI / 180.0) * 3.0;
+		eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(heli.pitch * PI / 180.0) * 3.0;
 		eye_z = (heli.coordinates.z) + cos((heli.yaw + 180) * PI / 180.0) * 10.0;
 	}
 	else
@@ -672,8 +684,26 @@ void setCamera()
 		freeCamPitch += (freeCamMouseYStart - cursorPos.y) / 360.0;
 
 		eye_x = heli.coordinates.x + sin(freeCamYaw * PI / 180.0) * 10.0;
-		eye_y = (heli.coordinates.y + 2.0) + sin(freeCamPitch * PI / 180.0) * 3.0;
+		eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(freeCamPitch * PI / 180.0) * 3.0;
 		eye_z = (heli.coordinates.z) + cos((freeCamYaw + 180) * PI / 180.0) * 10.0;
+
+		// Free cam slowdown
+		if (cursorPos.x > freeCamMouseXStart)
+		{
+			freeCamMouseXStart += fabsf(cursorPos.x - freeCamMouseXStart) * 0.02f;
+		}
+		else
+		{
+			freeCamMouseXStart -= fabsf(cursorPos.x - freeCamMouseXStart) * 0.02f;
+		}
+		if (cursorPos.y > freeCamMouseYStart)
+		{
+			freeCamMouseYStart += fabsf(cursorPos.y - freeCamMouseYStart) * 0.02f;
+		}
+		else
+		{
+			freeCamMouseYStart -= fabsf(cursorPos.y - freeCamMouseYStart) * 0.02f;
+		}
 	}
 
 	gluLookAt(
@@ -701,7 +731,7 @@ GLint desert_tex;
 void basicGround(void)
 {
 	if (!desert_tex)
-		desert_tex = loadTexture("desert_texture.bmp", 5400, 3000);
+		desert_tex = loadTexture("desert_texture.bmp", 1400, 1050);
 	glColor3f(1, 1, 1);
 	glPushMatrix();
 
@@ -710,7 +740,7 @@ void basicGround(void)
 
 	// map the texture to the quad
 
-			glPushMatrix();
+	glPushMatrix();
 	for (int i = 0; i < 10; i++)
 	{
 		//glTranslated(0.0, 0.0, 400.0);
@@ -726,7 +756,7 @@ void basicGround(void)
 		}
 		glTranslated(-400.0 * 10.0, 0.0, 400.0);
 	}
-			glPopMatrix();
+	glPopMatrix();
 
 	glDisable(GL_TEXTURE_2D);
 
@@ -856,4 +886,15 @@ void thinkHelicopter()
 
 	heli.rotorRotation += heli.rotorVelocity;
 	if (heli.rotorRotation > 360.0) heli.rotorRotation = 0.0;
+}
+
+void drawFog()
+{
+	GLfloat fogColor[4] = { 0.8, 0.4, 0.0, 1.0 }; // orange
+	glFogi(GL_FOG_MODE, GL_LINEAR);
+	glFogfv(GL_FOG_COLOR, fogColor);
+	glFogf(GL_FOG_DENSITY, 0.25);
+	glHint(GL_FOG_HINT, GL_NICEST);
+	glFogf(GL_FOG_START, heli.size * 6); // start distance of the fog
+	glFogf(GL_FOG_END, heli.size * 50); // end distance of the fog
 }
