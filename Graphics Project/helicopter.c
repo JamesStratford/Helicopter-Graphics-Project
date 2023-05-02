@@ -120,8 +120,8 @@ void drawFeet(Helicopter* heli)
 
 void drawBody(Helicopter* heli)
 {
-	//glColor3f(0.4f, 0.4f, 0.4f);
 	glPushMatrix();
+
 	glRotated(270.0, 1.0, 0.0, 0.0);
 
 	glRotated(90.0, 0.0, 0.0, 1.0);

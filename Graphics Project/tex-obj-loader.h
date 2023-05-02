@@ -28,17 +28,31 @@ typedef struct {
 } meshObjectFace;
 
 typedef struct {
+	char mtlName[50];
+	int faceCount;
+	meshObjectFace* faces;
+
+	GLfloat shininess;
+	GLfloat ambientCol[4];
+	GLfloat diffuseCol[4];
+	GLfloat specularCol[4];
+	GLint illum;
+} mtlObject;
+
+typedef struct {
 	int vertexCount;
 	vec3d* vertices;
 	int texCoordCount;
 	vec2d* texCoords;
 	int normalCount;
 	vec3d* normals;
-	int faceCount;
-	meshObjectFace* faces;
+	//int faceCount;
+	//meshObjectFace* faces;
+	int numMtlObjects;
+	mtlObject** mtlObjects;
 } meshObject;
 
-meshObject* loadMeshObject(char* fileName);
+meshObject* loadMeshObject(char* fileName, char* mtlFileName);
 void renderMeshObject(meshObject* object);
 void initMeshObjectFace(meshObjectFace* face, char* faceData, int faceDataLength);
 void freeMeshObject(meshObject* object);

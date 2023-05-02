@@ -173,6 +173,7 @@ int renderFillEnabled = 1;
 
 Helicopter heli;
 meshObject* zebra_obj;
+meshObject* tree_obj;
 
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
@@ -222,7 +223,6 @@ void main(int argc, char** argv)
 	 etc.) should only be performed within the think() function provided below.
  */
 
-
 void display(void)
 {
 	/*
@@ -234,22 +234,25 @@ void display(void)
 		Remember to add prototypes for any new functions to the "Animation-Specific
 		Function Prototypes" section near the top of this template.
 	*/
+	glShadeModel(GL_SMOOTH);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	diagnostics();
 	setCamera();
-	drawFog();
 
+
+	drawHelicopter(&heli);
+	//drawFog();
 	basicGround();
 
 	glPushMatrix();
 	glTranslated(0, 10, 0);
 	glScaled(10, 10, 10);
-	renderMeshObject(zebra_obj);
-	glPopMatrix();
-	drawHelicopter(&heli);
+	//renderMeshObject(zebra_obj);
 
+	renderMeshObject(tree_obj);
+	glPopMatrix();
 
 	glutSwapBuffers();
 }
@@ -529,17 +532,18 @@ void init(void)
 	glMatrixMode(GL_PROJECTION); // Select the projection matrix
 	glLoadIdentity(); // Load the identity matrix
 	//glOrtho(-30.0, 30.0, -30.0, 30.0, 0.1, 5000.0); // Set the orthographic projection
-	glEnable(GL_FOG);
-
+	//glEnable(GL_FOG);
 
 	glMatrixMode(GL_MODELVIEW); // Select the model view matrix
 	glLoadIdentity(); // Load the identity matrix
 
 	initLights();
 
+
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
 	initHelicopter(&heli);
-	zebra_obj = loadMeshObject("zebra.obj");
+	zebra_obj = loadMeshObject("zebra.obj", "zebra.mtl");
+	tree_obj = loadMeshObject("Palm_Tree.obj", "Palm_Tree.mtl");
 }
 
 /*
@@ -608,31 +612,26 @@ void think(void)
 */
 void initLights(void)
 {
-	// Simple lighting setup
-	GLfloat globalAmbient[] = { 0.4f, 0.4f, 0.4f, 1 };
-	GLfloat lightPosition[] = { 5.0f, 200.0f, 0.0f, 1.0f };
-	GLfloat ambientLight[] = { 0, 0, 0, 1 };
-	GLfloat diffuseLight[] = { 1, 1, 1, 1 };
-	GLfloat specularLight[] = { 1, 1, 1, 1 };
-
-	// Configure global ambient lighting.
-	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbient);
-
-	// Configure Light 0.
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+	// define the light color and intensity
+	GLfloat ambientLight[] = { 0.0, 0.0, 0.0, 1.0 };
+	GLfloat diffuseLight[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat specularLight[] = { 1.0, 1.0, 1.0, 1.0 };
+	// the global ambient light level
+	GLfloat globalAmbientLight[] = { 0.4f, 0.4f, 0.4f, 1.0f };
+	// set the global ambient light level
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbientLight);
+	// define the color and intensity for light 0
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
-
-	// Enable lighting
+	glLightfv(GL_LIGHT0, GL_SPECULAR, diffuseLight);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, specularLight);
+	// enable lighting
 	glEnable(GL_LIGHTING);
+	// enable light 0
 	glEnable(GL_LIGHT0);
-
-	// Make GL normalize the normal vectors we supply.
+	// turn on depth testing so that polygons are drawn in the correct order
+	glEnable(GL_DEPTH_TEST);
+	// make sure the normals are unit vectors
 	glEnable(GL_NORMALIZE);
-
-	// Enable use of simple GL colours as materials.
-	glEnable(GL_COLOR_MATERIAL);
 }
 
 /******************************************************************************/
@@ -640,7 +639,7 @@ void initLights(void)
 void diagnostics()
 {
 	glPushMatrix();
-	glColor3f(1.0, 0.0, 0.0);
+	//glColor3f(1.0, 0.0, 0.0);
 	glLineWidth(5);
 	char heliX[200];
 	char heliY[200];
@@ -732,7 +731,7 @@ void basicGround(void)
 {
 	if (!desert_tex)
 		desert_tex = loadTexture("desert_texture.bmp", 1400, 1050);
-	glColor3f(1, 1, 1);
+
 	glPushMatrix();
 
 	glEnable(GL_TEXTURE_2D);
@@ -759,19 +758,6 @@ void basicGround(void)
 	glPopMatrix();
 
 	glDisable(GL_TEXTURE_2D);
-
-	//glColor3f(0.0f, 1.0f, 0.0f); //pale green -- better to have a const
-	//glBegin(GL_QUADS);
-	//glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
-	//glVertex3f(-200.0f, 0.0f, -200.0f);
-	//glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
-	//glVertex3f(-200.0f, 0.0f, 200.0f);
-	//glColor3f(1.0f, 1.0f, 0.0f); //pale green -- better to have a const
-	//glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
-	//glVertex3f(200.0f, 0.0f, 200.0f);
-	//glNormal3d(0.0, 1.0, 0.0); //set normal to enable by-vertex lighting on ground
-	//glVertex3f(200.0f, 0.0f, -200.0f);
-	//glEnd();
 	glPopMatrix();
 }
 

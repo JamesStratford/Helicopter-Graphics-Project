@@ -10,7 +10,7 @@
 	 Note: Any object loaded via this function must eventually be freed via freeMeshObject(): a mesh object
 	 returned by this function CANNOT be released with free().
  */
-meshObject* loadMeshObject(char* fileName)
+meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 {
 	FILE* inFile;
 	meshObject* object;
@@ -35,8 +35,15 @@ meshObject* loadMeshObject(char* fileName)
 	object->texCoords = NULL;
 	object->normalCount = 0;
 	object->normals = NULL;
-	object->faceCount = 0;
-	object->faces = NULL;
+	//object->faceCount = 0;
+	//object->faces = NULL;
+	object->numMtlObjects = 0;
+	object->mtlObjects = calloc(10, sizeof(mtlObject*));
+	for (int i = 0; i < 10; i++) {
+		object->mtlObjects[i] = malloc(sizeof(mtlObject));
+		object->mtlObjects[i]->faceCount = 0;
+		object->mtlObjects[i]->faces = NULL;
+	}
 
 	// Pre-parse the file to determine how many vertices, texture coordinates, normals, and faces we have.
 	while (fgets(line, (unsigned)_countof(line), inFile))
@@ -51,8 +58,12 @@ meshObject* loadMeshObject(char* fileName)
 			else if (strcmp(keyword, "vn") == 0) {
 				object->normalCount++;
 			}
+			// Faces
+			else if (strcmp(keyword, "usemtl") == 0) {
+				++object->numMtlObjects;
+			}
 			else if (strcmp(keyword, "f") == 0) {
-				object->faceCount++;
+				object->mtlObjects[object->numMtlObjects - 1]->faceCount++;
 			}
 		}
 	}
@@ -60,11 +71,19 @@ meshObject* loadMeshObject(char* fileName)
 	if (object->vertexCount > 0)object->vertices = malloc(sizeof(vec3d) * object->vertexCount);
 	if (object->texCoordCount > 0) object->texCoords = malloc(sizeof(vec2d) * object->texCoordCount);
 	if (object->normalCount > 0) object->normals = malloc(sizeof(vec3d) * object->normalCount);
-	if (object->faceCount > 0) object->faces = malloc(sizeof(meshObjectFace) * object->faceCount);
+	for (int i = 0; i < object->numMtlObjects; i++)
+	{
+		if (object->mtlObjects[i]->faceCount > 0) {
+			object->mtlObjects[i]->faces = malloc(sizeof(meshObjectFace) * object->mtlObjects[i]->faceCount);
+			//object->mtlObjects[i]->faces->
+		}
+
+	}
 
 	// Parse the file again, reading the actual vertices, texture coordinates, normals, and faces.
 	rewind(inFile);
 
+	int mtlIndex = -1;
 	while (fgets(line, (unsigned)_countof(line), inFile))
 	{
 		if (sscanf_s(line, "%9s", keyword, (unsigned)_countof(keyword)) == 1) {
@@ -86,14 +105,73 @@ meshObject* loadMeshObject(char* fileName)
 				memcpy_s(&object->normals[currentNormalIndex], sizeof(vec3d), &normal, sizeof(vec3d));
 				currentNormalIndex++;
 			}
+			else if (strcmp(keyword, "usemtl") == 0) {
+				++mtlIndex;
+				currentFaceIndex = 0;
+				char name[50];
+				sscanf_s(line, "%*s %s\0", name, sizeof(name));
+				strcpy_s(object->mtlObjects[mtlIndex]->mtlName, sizeof(object->mtlObjects[mtlIndex]->mtlName), name);
+			}
 			else if (strcmp(keyword, "f") == 0) {
-				initMeshObjectFace(&(object->faces[currentFaceIndex]), line, _countof(line));
+				initMeshObjectFace(&(object->mtlObjects[mtlIndex]->faces[currentFaceIndex]), line, _countof(line));
 				currentFaceIndex++;
 			}
 		}
 	}
 
 	fclose(inFile);
+
+	FILE* mtlFile;
+	fopen_s(&mtlFile, mtlFileName, "r");
+
+	if (mtlFile == NULL) {
+		return object;
+	}
+
+	mtlIndex = -1;
+	while (fgets(line, (unsigned)_countof(line), mtlFile))
+	{
+		if (sscanf_s(line, "%9s", keyword, (unsigned)_countof(keyword)) == 1) {
+			if (strcmp(keyword, "newmtl") == 0) {
+				char name[50];
+				sscanf_s(line, "%*s %s\0", name, sizeof(name));
+				for (int i = 0; i < object->numMtlObjects; i++)
+				{
+					if (strcmp(object->mtlObjects[i]->mtlName, name) == 0)
+					{
+						mtlIndex = i;
+						break;
+					}
+				}
+			}
+			else if (strcmp(keyword, "Ns") == 0) {
+				GLfloat shininess = 0.0f;
+				sscanf_s(line, "%*s %f", &shininess);
+				memcpy_s(&object->mtlObjects[mtlIndex]->shininess, sizeof(GLfloat), &shininess, sizeof(GLfloat));
+			}
+			else if (strcmp(keyword, "Ka") == 0) {
+				GLfloat ambientCol[4] = {0.0, 0.0, 0.0, 1.0};
+				sscanf_s(line, "%*s %f %f %f", &ambientCol[0], &ambientCol[1], &ambientCol[2]);
+				memcpy_s(&object->mtlObjects[mtlIndex]->ambientCol, sizeof(GLfloat[4]), &ambientCol, sizeof(GLfloat[4]));
+			}
+			else if (strcmp(keyword, "Kd") == 0) {
+				GLfloat diffuseCol[4] = { 0.0, 0.0, 0.0, 1.0 };
+				sscanf_s(line, "%*s %f %f %f", &diffuseCol[0], &diffuseCol[1], &diffuseCol[2]);
+				memcpy_s(&object->mtlObjects[mtlIndex]->diffuseCol, sizeof(GLfloat[4]), &diffuseCol, sizeof(GLfloat[4]));
+			}
+			else if (strcmp(keyword, "Ks") == 0) {
+				GLfloat specularCol[4] = { 0.0, 0.0, 0.0, 1.0 };
+				sscanf_s(line, "%*s %f %f %f", &specularCol[0], &specularCol[1], &specularCol[2]);
+				memcpy_s(&object->mtlObjects[mtlIndex]->specularCol, sizeof(GLfloat[4]), &specularCol, sizeof(GLfloat[4]));
+			}
+			else if (strcmp(keyword, "illum") == 0) {
+				GLint illum = 0;
+				sscanf_s(line, "%*s %d", &illum);
+				memcpy_s(&object->mtlObjects[mtlIndex]->illum, sizeof(GLint), &illum, sizeof(GLint));
+			}
+		}
+	}
+	fclose(mtlFile);
 
 	return object;
 }
@@ -102,31 +180,40 @@ meshObject* loadMeshObject(char* fileName)
 	Render the faces of the specified Mesh Object in OpenGL.
 */
 void renderMeshObject(meshObject* object) {
-	for (int faceNo = 0; faceNo < object->faceCount; faceNo++) {
-		meshObjectFace face = object->faces[faceNo];
-		if (face.pointCount >= 3) {
-			glBegin(GL_POLYGON);
+	for (int mtlNo = 0; mtlNo < object->numMtlObjects; mtlNo++) {
+		glShadeModel(GL_SMOOTH);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, object->mtlObjects[mtlNo]->ambientCol);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, object->mtlObjects[mtlNo]->diffuseCol);
+		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, object->mtlObjects[mtlNo]->specularCol);
+		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, object->mtlObjects[mtlNo]->shininess);
+		for (int faceNo = 0; faceNo < object->mtlObjects[mtlNo]->faceCount; faceNo++) {
+			meshObjectFace face = object->mtlObjects[mtlNo]->faces[faceNo];
+			if (face.pointCount >= 3) {
+				glBegin(GL_POLYGON);
 
-			for (int pointNo = 0; pointNo < face.pointCount; pointNo++) {
-				meshObjectFacePoint point = face.points[pointNo];
+				for (int pointNo = 0; pointNo < face.pointCount; pointNo++) {
+					meshObjectFacePoint point = face.points[pointNo];
 
-				if (point.normalIndex >= 0) {
-					vec3d normal = object->normals[point.normalIndex];
-					glNormal3d(normal.x, normal.y, normal.z);
+					if (point.normalIndex >= 0) {
+						vec3d normal = object->normals[point.normalIndex];
+						glNormal3d(normal.x, normal.y, normal.z);
+					}
+
+					if (point.texCoordIndex >= 0) {
+						vec2d texCoord = object->texCoords[point.texCoordIndex];
+						glTexCoord2d(texCoord.x, texCoord.y);
+					}
+
+					vec3d vertex = object->vertices[point.vertexIndex];
+
+					glVertex3f(vertex.x, vertex.y, vertex.z);
 				}
 
-				if (point.texCoordIndex >= 0) {
-					vec2d texCoord = object->texCoords[point.texCoordIndex];
-					glTexCoord2d(texCoord.x, texCoord.y);
-				}
-
-				vec3d vertex = object->vertices[point.vertexIndex];
-				glVertex3f(vertex.x, vertex.y, vertex.z);
+				glEnd();
 			}
-
-			glEnd();
 		}
 	}
+
 }
 
 /*
@@ -216,13 +303,15 @@ void freeMeshObject(meshObject* object)
 		free(object->vertices);
 		free(object->texCoords);
 		free(object->normals);
+		for (int mtlNo = 0; mtlNo < object->numMtlObjects; mtlNo++) {
 
-		if (object->faces != NULL) {
-			for (int i = 0; i < object->faceCount; i++) {
-				free(object->faces[i].points);
+			if (object->mtlObjects[mtlNo]->faces != NULL) {
+				for (int i = 0; i < object->mtlObjects[mtlNo]->faceCount; i++) {
+					free(object->mtlObjects[mtlNo]->faces[i].points);
+				}
+
+				free(object->mtlObjects[mtlNo]->faces);
 			}
-
-			free(object->faces);
 		}
 
 		free(object);
