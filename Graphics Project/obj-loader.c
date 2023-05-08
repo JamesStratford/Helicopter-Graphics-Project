@@ -1,4 +1,4 @@
-#include "tex-obj-loader.h"
+#include "obj-loader.h"
 
 /******************************************************************************
  * Mesh Object Loader Implementation
@@ -10,6 +10,20 @@
 	 Note: Any object loaded via this function must eventually be freed via freeMeshObject(): a mesh object
 	 returned by this function CANNOT be released with free().
  */
+int findMtlIndex(meshObject* object, char* mtlName)
+{
+	int mtlIndex = -1;
+	for (int i = 0; i < object->numMtlObjects; i++)
+	{
+		if (strcmp(object->mtlObjects[i]->mtlName, mtlName) == 0)
+		{
+			mtlIndex = i;
+			break;
+		}
+	}
+	return mtlIndex;
+}
+
 meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 {
 	FILE* inFile;
@@ -60,10 +74,16 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 			}
 			// Faces
 			else if (strcmp(keyword, "usemtl") == 0) {
-				++object->numMtlObjects;
+				char name[50];
+				sscanf_s(line, "%*s %s\0", name, sizeof(name));
+				if (findMtlIndex(object, name) == -1)
+				{
+					strcpy_s(object->mtlObjects[object->numMtlObjects]->mtlName, sizeof(object->mtlObjects[object->numMtlObjects]->mtlName), name);
+					++object->numMtlObjects;
+				}
 			}
 			else if (strcmp(keyword, "f") == 0) {
-				object->mtlObjects[object->numMtlObjects - 1]->faceCount++;
+				object->mtlObjects[object->numMtlObjects-1]->faceCount++;
 			}
 		}
 	}
@@ -75,7 +95,6 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 	{
 		if (object->mtlObjects[i]->faceCount > 0) {
 			object->mtlObjects[i]->faces = malloc(sizeof(meshObjectFace) * object->mtlObjects[i]->faceCount);
-			//object->mtlObjects[i]->faces->
 		}
 
 	}
@@ -106,11 +125,12 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 				currentNormalIndex++;
 			}
 			else if (strcmp(keyword, "usemtl") == 0) {
-				++mtlIndex;
+				//++mtlIndex;
 				currentFaceIndex = 0;
 				char name[50];
 				sscanf_s(line, "%*s %s\0", name, sizeof(name));
-				strcpy_s(object->mtlObjects[mtlIndex]->mtlName, sizeof(object->mtlObjects[mtlIndex]->mtlName), name);
+
+				mtlIndex = findMtlIndex(object, name);
 			}
 			else if (strcmp(keyword, "f") == 0) {
 				initMeshObjectFace(&(object->mtlObjects[mtlIndex]->faces[currentFaceIndex]), line, _countof(line));
@@ -121,12 +141,19 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 
 	fclose(inFile);
 
+	if (!mtlFileName)
+	{
+		object->hasMtlChildren = 0;
+		return object;
+	}
+
 	FILE* mtlFile;
 	fopen_s(&mtlFile, mtlFileName, "r");
 
 	if (mtlFile == NULL) {
 		return object;
 	}
+	object->hasMtlChildren = 1;
 
 	mtlIndex = -1;
 	while (fgets(line, (unsigned)_countof(line), mtlFile))
@@ -135,14 +162,8 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 			if (strcmp(keyword, "newmtl") == 0) {
 				char name[50];
 				sscanf_s(line, "%*s %s\0", name, sizeof(name));
-				for (int i = 0; i < object->numMtlObjects; i++)
-				{
-					if (strcmp(object->mtlObjects[i]->mtlName, name) == 0)
-					{
-						mtlIndex = i;
-						break;
-					}
-				}
+				mtlIndex = findMtlIndex(object, name);
+				if (mtlIndex == -1) break;
 			}
 			else if (strcmp(keyword, "Ns") == 0) {
 				GLfloat shininess = 0.0f;
@@ -181,11 +202,14 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 */
 void renderMeshObject(meshObject* object) {
 	for (int mtlNo = 0; mtlNo < object->numMtlObjects; mtlNo++) {
-		glShadeModel(GL_SMOOTH);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, object->mtlObjects[mtlNo]->ambientCol);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, object->mtlObjects[mtlNo]->diffuseCol);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, object->mtlObjects[mtlNo]->specularCol);
-		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, object->mtlObjects[mtlNo]->shininess);
+		if (object->hasMtlChildren)
+		{
+			glShadeModel(GL_SMOOTH);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, object->mtlObjects[mtlNo]->ambientCol);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, object->mtlObjects[mtlNo]->diffuseCol);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, object->mtlObjects[mtlNo]->specularCol);
+			glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, object->mtlObjects[mtlNo]->shininess);
+		}
 		for (int faceNo = 0; faceNo < object->mtlObjects[mtlNo]->faceCount; faceNo++) {
 			meshObjectFace face = object->mtlObjects[mtlNo]->faces[faceNo];
 			if (face.pointCount >= 3) {
@@ -213,7 +237,6 @@ void renderMeshObject(meshObject* object) {
 			}
 		}
 	}
-
 }
 
 /*
@@ -316,136 +339,4 @@ void freeMeshObject(meshObject* object)
 
 		free(object);
 	}
-}
-
-/******************************************************************************
- * PPM Object Loader Implementation
- * Load a binary ppm file into an OpenGL texture and return the OpenGL texture reference ID
- ******************************************************************************/
-
-int loadPPM(char* filename)
-{
-	FILE* inFile; //File pointer
-	int width, height, maxVal; //image metadata from PPM file format
-	int totalPixels; // total number of pixels in the image
-
-					 // temporary character
-	char tempChar;
-	// counter variable for the current pixel in the image
-	int i;
-
-	char header[100]; //input buffer for reading in the file header information
-
-	// if the original values are larger than 255
-	float RGBScaling;
-
-	// temporary variables for reading in the red, green and blue data of each pixel
-	int red, green, blue;
-
-	GLubyte* texture; //the texture buffer pointer
-
-	//create one texture with the next available index
-	GLuint textureID;
-	glGenTextures(1, &textureID);
-
-	fopen_s(&inFile, filename, "r");
-
-	// read in the first header line
-	//    - "%[^\n]"  matches a string of all characters not equal to the new line character ('\n')
-	//    - so we are just reading everything up to the first line break
-	fscanf_s(inFile, "%[^\n] ", header);
-
-	// make sure that the image begins with 'P3', which signifies a PPM file
-	if ((header[0] != 'P') || (header[1] != '3'))
-	{
-		printf("This is not a PPM file!\n");
-		exit(0);
-	}
-
-	// we have a PPM file
-	printf("This is a PPM file\n");
-
-	// read in the first character of the next line
-	fscanf_s(inFile, "%c", &tempChar);
-
-	// while we still have comment lines (which begin with #)
-	while (tempChar == '#')
-	{
-		// read in the comment
-		fscanf_s(inFile, "%[^\n] ", header);
-
-		// print the comment
-		printf("%s\n", header);
-
-		// read in the first character of the next line
-		fscanf_s(inFile, "%c", &tempChar);
-	}
-
-	// the last one was not a comment character '#', so we need to put it back into the file stream (undo)
-	ungetc(tempChar, inFile);
-
-	// read in the image hieght, width and the maximum value
-	fscanf_s(inFile, "%d %d %d", &width, &height, &maxVal);
-	// print out the information about the image file
-	printf("%d rows  %d columns  max value= %d\n", height, width, maxVal);
-
-	// compute the total number of pixels in the image
-	totalPixels = width * height;
-
-	// allocate enough memory for the image  (3*) because of the RGB data
-	texture = malloc(3 * sizeof(GLuint) * totalPixels);
-
-	// determine the scaling for RGB values
-	RGBScaling = 255.0f / maxVal;
-
-	// if the maxValue is 255 then we do not need to scale the 
-	//    image data values to be in the range or 0 to 255
-	if (maxVal == 255)
-	{
-		for (i = 0; i < totalPixels; i++)
-		{
-			// read in the current pixel from the file
-			fscanf_s(inFile, "%d %d %d", &red, &green, &blue);
-
-			// store the red, green and blue data of the current pixel in the data array
-			texture[3 * totalPixels - 3 * i - 3] = red;
-			texture[3 * totalPixels - 3 * i - 2] = green;
-			texture[3 * totalPixels - 3 * i - 1] = blue;
-		}
-	}
-	else  // need to scale up the data values
-	{
-		for (i = 0; i < totalPixels; i++)
-		{
-			// read in the current pixel from the file
-			fscanf_s(inFile, "%d %d %d", &red, &green, &blue);
-
-			// store the red, green and blue data of the current pixel in the data array
-			texture[3 * totalPixels - 3 * i - 3] = (GLubyte)(red * RGBScaling);
-			texture[3 * totalPixels - 3 * i - 2] = (GLubyte)(green * RGBScaling);
-			texture[3 * totalPixels - 3 * i - 1] = (GLubyte)(blue * RGBScaling);
-		}
-	}
-
-
-	fclose(inFile);
-
-	glBindTexture(GL_TEXTURE_2D, textureID);
-
-
-	//Set the texture parameters
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-
-
-	//Create mipmaps
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 4, (GLuint)width, (GLuint)height, GL_RGB, GL_UNSIGNED_BYTE, texture);
-
-	//openGL guarantees to have the texture data stored so we no longer need it
-	free(texture);
-
-	//return the current texture id
-	return(textureID);
 }

@@ -4,9 +4,18 @@ extern int renderFillEnabled;
 
 void initHelicopter(Helicopter* heli)
 {
+	GLfloat ambient[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat specular[] = { 1.0, 1.0, 1.0, 1.0 };
+
+	memcpy_s(heli->mat.ambient, sizeof(float[4]), ambient, sizeof(float[4]));
+	memcpy_s(heli->mat.diffuse, sizeof(float[4]), diffuse, sizeof(float[4]));
+	memcpy_s(heli->mat.specular, sizeof(float[4]), specular, sizeof(float[4]));
+	heli->mat.shininess = 100.0f;
 	heli->quadric = gluNewQuadric();
 	heli->size = 10.0;
-	heli->coordinates.y = heli->size;
+	//heli->coordinates.x = 5000;
+	//heli->coordinates.z = 5000;
 
 	heli->collisionBox.x = heli->size / 2.0;
 	heli->collisionBox.y = heli->size * 1.45;
@@ -21,7 +30,9 @@ void initHelicopter(Helicopter* heli)
 	heli->strafeVelocity = 0.0;
 	heli->liftVelocity = 0.0;
 
-	heli->texture = loadTexture("heli_texture.bmp", 612, 612);
+	//heli->texture = loadTexture("heli_texture.bmp", 612, 612);
+	heli->texture = loadTexture("zebra_body.bmp");
+
 }
 
 void drawTopRotor(Helicopter* heli)
@@ -136,6 +147,11 @@ void drawHelicopter(Helicopter* heli)
 	renderFillEnabled ? gluQuadricDrawStyle(heli->quadric, GLU_FILL) : gluQuadricDrawStyle(heli->quadric, GLU_LINE);
 
 	glPushMatrix();
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, heli->mat.ambient);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, heli->mat.diffuse);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, heli->mat.specular);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, heli->mat.shininess);
+
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, heli->texture);
 	gluQuadricTexture(heli->quadric, TRUE);
@@ -155,5 +171,10 @@ void drawHelicopter(Helicopter* heli)
 	drawFeet(heli);
 	drawTopRotor(heli);
 	drawTailRotor(heli);
+
+	glDisable(GL_TEXTURE_2D);
+
+
 	glPopMatrix();
 }
+

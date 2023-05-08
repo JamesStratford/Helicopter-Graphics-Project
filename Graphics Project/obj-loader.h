@@ -48,6 +48,7 @@ typedef struct {
 	vec3d* normals;
 	//int faceCount;
 	//meshObjectFace* faces;
+	int hasMtlChildren;
 	int numMtlObjects;
 	mtlObject** mtlObjects;
 } meshObject;
@@ -56,7 +57,5 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName);
 void renderMeshObject(meshObject* object);
 void initMeshObjectFace(meshObjectFace* face, char* faceData, int faceDataLength);
 void freeMeshObject(meshObject* object);
-
-int loadPPM(char* filename);
 
 // ----------------------------------------------------------------------------------

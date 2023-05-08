@@ -21,13 +21,15 @@
   <ItemGroup>
     <ClCompile Include="animationcontroller-lights.c" />
     <ClCompile Include="helicopter.c" />
-    <ClCompile Include="tex-obj-loader.c" />
+    <ClCompile Include="terrain.c" />
+    <ClCompile Include="obj-loader.c" />
     <ClCompile Include="texture-mapping.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helicopter.h" />
     <ClInclude Include="includes.h" />
-    <ClInclude Include="tex-obj-loader.h" />
+    <ClInclude Include="terrain.h" />
+    <ClInclude Include="obj-loader.h" />
     <ClInclude Include="texture-mapping.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

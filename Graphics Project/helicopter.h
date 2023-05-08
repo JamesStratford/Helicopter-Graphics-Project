@@ -1,8 +1,11 @@
 #pragma once
 #include "includes.h"
+#include "obj-loader.h"
 
 typedef struct
 {
+	meshObject* mesh;
+	Material mat;
 	GLUquadric* quadric;
 	GLdouble size;
 	Pos3 coordinates;

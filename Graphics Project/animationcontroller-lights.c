@@ -19,7 +19,8 @@
 #include <math.h>
 #include "helicopter.h"
 #include "texture-mapping.h"
-#include "tex-obj-loader.h"
+#include "obj-loader.h"
+#include "terrain.h"
 
  /******************************************************************************
   * Animation & Timing Setup
@@ -148,7 +149,6 @@ void setCamera();
 int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo);
 
 void thinkHelicopter();
-void drawFog();
 
 
 
@@ -161,7 +161,7 @@ int windowHeight = 1000;
 int worldDimensions[] = { 200, 200, 200 };
 Pos3 cameraPosition;
 int cameraZoomLevel = 0;
-GLdouble orthoLevel = 50.0;
+GLdouble orthoLevel = 200.0;
 int freeCam = 0;
 GLdouble freeCamYaw = 0.0;
 GLdouble freeCamPitch = 0.0;
@@ -171,9 +171,12 @@ int freeCamMouseYStart = 0;
 // Render objects as filled polygons (1) or wireframes (0). Default filled.
 int renderFillEnabled = 1;
 
+GLuint g_displayListIndex = 0;
+
 Helicopter heli;
 meshObject* zebra_obj;
 meshObject* tree_obj;
+Terrain terrain[10][10];
 
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
@@ -222,19 +225,10 @@ void main(int argc, char** argv)
 	 world. Animation (moving or rotating things, responding to keyboard input,
 	 etc.) should only be performed within the think() function provided below.
  */
-
+int zebra_tex = 0;
 void display(void)
 {
-	/*
-		TEMPLATE: REPLACE THIS COMMENT WITH YOUR DRAWING CODE
 
-		Separate reusable pieces of drawing code into functions, which you can add
-		to the "Animation-Specific Functions" section below.
-
-		Remember to add prototypes for any new functions to the "Animation-Specific
-		Function Prototypes" section near the top of this template.
-	*/
-	glShadeModel(GL_SMOOTH);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -243,16 +237,11 @@ void display(void)
 
 
 	drawHelicopter(&heli);
-	//drawFog();
-	basicGround();
 
-	glPushMatrix();
-	glTranslated(0, 10, 0);
-	glScaled(10, 10, 10);
-	//renderMeshObject(zebra_obj);
+	for (int i = 1; i <= g_displayListIndex; i++)
+		glCallList(i);
 
-	renderMeshObject(tree_obj);
-	glPopMatrix();
+
 
 	glutSwapBuffers();
 }
@@ -269,7 +258,7 @@ void reshape(int width, int h)
 	glLoadIdentity();
 	GLdouble aspect = (double)windowWidth / (double)windowHeight;
 
-	glOrtho(-orthoLevel * aspect, orthoLevel * aspect, -orthoLevel, orthoLevel, -orthoLevel * 10.0, max(orthoLevel * 10.0, 200.0));
+	glOrtho(-orthoLevel * aspect, orthoLevel * aspect, -orthoLevel, orthoLevel, -orthoLevel * 10.0, max(orthoLevel * 10.0, 2000.0));
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -492,14 +481,14 @@ void mouse(int button, int state, int x, int y)
 	if (button == 3 || button == 4)
 	{
 		if (button == 3 && state == GLUT_UP)
-			if (orthoLevel > 1.0) orthoLevel -= 10.0;
+			if (orthoLevel > 10.0) orthoLevel -= 10.0;
 		if (button == 4 && state == GLUT_UP)
 			if (orthoLevel < 1000.0) orthoLevel += 10.0;
 
 		glViewport(0, 0, windowWidth, windowHeight);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		glOrtho(-orthoLevel * aspect, orthoLevel * aspect, -orthoLevel, orthoLevel, -orthoLevel * 10.0, max(orthoLevel * 10.0, 200.0));
+		glOrtho(-orthoLevel * aspect, orthoLevel * aspect, -orthoLevel, orthoLevel, -orthoLevel * 10.0, max(orthoLevel * 10.0, 2000.0));
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 	}
@@ -532,7 +521,12 @@ void init(void)
 	glMatrixMode(GL_PROJECTION); // Select the projection matrix
 	glLoadIdentity(); // Load the identity matrix
 	//glOrtho(-30.0, 30.0, -30.0, 30.0, 0.1, 5000.0); // Set the orthographic projection
+	
 	//glEnable(GL_FOG);
+	GLfloat fogColor[4] = { 0.8, 0.4, 0.0, 1.0 }; // orange
+	glFogi(GL_FOG_MODE, GL_EXP);
+	glFogfv(GL_FOG_COLOR, fogColor);
+	glFogf(GL_FOG_DENSITY, 0.5);
 
 	glMatrixMode(GL_MODELVIEW); // Select the model view matrix
 	glLoadIdentity(); // Load the identity matrix
@@ -542,8 +536,25 @@ void init(void)
 
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
 	initHelicopter(&heli);
-	zebra_obj = loadMeshObject("zebra.obj", "zebra.mtl");
-	tree_obj = loadMeshObject("Palm_Tree.obj", "Palm_Tree.mtl");
+	//zebra_obj = loadMeshObject("zebra.obj", "zebra.mtl");
+	//tree_obj = loadMeshObject("Palm_Tree.obj", "Palm_Tree.mtl");
+	//terrain = loadMeshObject("untitled.obj", "untitled.mtl");
+	//initTerrain(&terrain);
+	//tree_obj = loadMeshObject("Palm_Tree.obj", NULL);
+
+	int x = 1000;
+	int z = 1000;
+	for (int i = 0; i < 3; i++)
+	{
+		for (int k = 0; k < 3; k++)
+		{
+			initTerrain(&terrain[i][k], x, z);
+			z += 2000;
+		}
+		z = 1000;
+		x += 2000;
+	}
+
 }
 
 /*
@@ -556,50 +567,6 @@ void init(void)
 */
 void think(void)
 {
-	/*
-		TEMPLATE: REPLACE THIS COMMENT WITH YOUR ANIMATION/SIMULATION CODE
-
-		In this function, we update all the variables that control the animated
-		parts of our simulated world. For example: if you have a moving box, this is
-		where you update its coordinates to make it move. If you have something that
-		spins around, here's where you update its angle.
-
-		NOTHING CAN BE DRAWN IN HERE: you can only update the variables that control
-		how everything will be drawn later in display().
-
-		How much do we move or rotate things? Because we use a fixed frame rate, we
-		assume there's always FRAME_TIME milliseconds between drawing each frame. So,
-		every time think() is called, we need to work out how far things should have
-		moved, rotated, or otherwise changed in that period of time.
-
-		Movement example:
-		* Let's assume a distance of 1.0 GL units is 1 metre.
-		* Let's assume we want something to move 2 metres per second on the x axis
-		* Each frame, we'd need to update its position like this:
-			x += 2 * (FRAME_TIME / 1000.0f)
-		* Note that we have to convert FRAME_TIME to seconds. We can skip this by
-		  using a constant defined earlier in this template:
-			x += 2 * FRAME_TIME_SEC;
-
-		Rotation example:
-		* Let's assume we want something to do one complete 360-degree rotation every
-		  second (i.e. 60 Revolutions Per Minute, or RPM).
-		* Each frame, we'd need to update our object's angle like this (we'll use the
-		  FRAME_TIME_SEC constant as per the example above):
-			a += 360 * FRAME_TIME_SEC;
-
-		This works for any type of "per second" change: just multiply the amount you'd
-		want to move in a full second by FRAME_TIME_SEC, and add or subtract that
-		from whatever variable you're updating.
-
-		You can use this same approach to animate other things like color, opacity,
-		brightness of lights, etc.
-	*/
-
-	/*
-		Keyboard motion handler: complete this section to make your "player-controlled"
-		object respond to keyboard input.
-	*/
 	thinkHelicopter();
 }
 
@@ -612,22 +579,30 @@ void think(void)
 */
 void initLights(void)
 {
+
+
 	// define the light color and intensity
 	GLfloat ambientLight[] = { 0.0, 0.0, 0.0, 1.0 };
 	GLfloat diffuseLight[] = { 1.0, 1.0, 1.0, 1.0 };
 	GLfloat specularLight[] = { 1.0, 1.0, 1.0, 1.0 };
 	// the global ambient light level
 	GLfloat globalAmbientLight[] = { 0.4f, 0.4f, 0.4f, 1.0f };
+
 	// set the global ambient light level
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbientLight);
 	// define the color and intensity for light 0
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, diffuseLight);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, specularLight);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
 	// enable lighting
 	glEnable(GL_LIGHTING);
 	// enable light 0
 	glEnable(GL_LIGHT0);
+
+	// set light position
+	GLfloat lightPosition[] = { 5.0f, 200.0f, 0.0f, 1.0f };
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+
 	// turn on depth testing so that polygons are drawn in the correct order
 	glEnable(GL_DEPTH_TEST);
 	// make sure the normals are unit vectors
@@ -735,9 +710,9 @@ void basicGround(void)
 	glPushMatrix();
 
 	glEnable(GL_TEXTURE_2D);
+	// map the texture to the quad
 	glBindTexture(GL_TEXTURE_2D, desert_tex);
 
-	// map the texture to the quad
 
 	glPushMatrix();
 	for (int i = 0; i < 10; i++)
@@ -755,9 +730,9 @@ void basicGround(void)
 		}
 		glTranslated(-400.0 * 10.0, 0.0, 400.0);
 	}
-	glPopMatrix();
 
 	glDisable(GL_TEXTURE_2D);
+
 	glPopMatrix();
 }
 
@@ -768,37 +743,62 @@ https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection
 int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo)
 {
 	return (
-		positionOne.x - (collisionBoxOne.x / 2.0) <= 200.0 &&
-		positionOne.x + (collisionBoxOne.x / 2.0) >= -200.0 &&
-		positionOne.y - (collisionBoxOne.y / 2.0) <= 0.0 &&
-		positionOne.y + (collisionBoxOne.y / 2.0) >= 0.0 &&
-		positionOne.z - (collisionBoxOne.z / 2.0) <= 200.0 &&
-		positionOne.z + (collisionBoxOne.z / 2.0) >= -200.0
+		positionOne.x - (collisionBoxOne.x / 2.0) <= positionTwo.x + (collisionBoxTwo.x / 2.0) &&
+		positionOne.x + (collisionBoxOne.x / 2.0) >= positionTwo.x - (collisionBoxTwo.x / 2.0) &&
+		positionOne.y - (collisionBoxOne.y / 2.0) <= positionTwo.y + (collisionBoxTwo.y / 2.0) &&
+		positionOne.y + (collisionBoxOne.y / 2.0) >= positionTwo.y - (collisionBoxTwo.x / 2.0) &&
+		positionOne.z - (collisionBoxOne.z / 2.0) <= positionTwo.z + (collisionBoxTwo.z / 2.0) &&
+		positionOne.z + (collisionBoxOne.z / 2.0) >= positionTwo.z - (collisionBoxTwo.z / 2.0)
 		);
 }
 
-void thinkHelicopter()
+int thinkHelicopterCollision()
 {
-	int collidedWithTerrain = 0;
-	if (checkCollision(heli.coordinates, heli.collisionBox, heli.collisionBox, heli.collisionBox))
+	int out = 0;
+	
+	// Acquire current terrain grid
+	int i = (heli.coordinates.x) / terrain[0][0].postSize;
+	int k = (heli.coordinates.z) / terrain[0][0].postSize;
+	if (checkCollisionTerrain(&terrain[i][k], &heli))
 	{
-		collidedWithTerrain = 1;
+		out = 1;
+
+		// Degrade angles and speed quickly
 		heli.pitch *= (1.0 - 0.1);
 		heli.velocity *= (1.0 - 0.25);
-
 		heli.roll *= (1.0 - 0.1);
 		heli.strafeVelocity *= (1.0 - 0.25);
 
-		heli.liftVelocity *= (1.0 - 0.75);
-		heli.rotorVelocity -= 0.05;
+		if (keyboardMotion.Heave <= 0)
+		{
+			// Slow down rotors
+			heli.rotorVelocity -= 0.05;
+		}
+		else
+		{
+			// Speed up rotors
+			heli.rotorVelocity += 0.05;
+		}
+
+		// Prevent negative rotor spin.
 		heli.rotorVelocity = max(heli.rotorVelocity, 0.0);
 	}
 	else
 	{
+		// Speed up rotors
 		heli.rotorVelocity += 0.05;
+		// Rotor maxium value of 25.0
 		heli.rotorVelocity = min(heli.rotorVelocity, 25.0);
 	}
+	
+	return out;
+}
 
+void thinkHelicopter()
+{
+	int collidedWithTerrain = thinkHelicopterCollision();
+
+	// Spin / rotate helicopter
 	if (keyboardMotion.Yaw != MOTION_NONE && !collidedWithTerrain) {
 		heli.yaw -= keyboardMotion.Yaw;
 
@@ -806,24 +806,24 @@ void thinkHelicopter()
 		if (heli.yaw < 0) heli.yaw = 360;
 	}
 
+	// Forward / backward velocity
 	if (keyboardMotion.Surge != MOTION_NONE && !collidedWithTerrain) {
 		if (heli.velocity <= 100.0 && heli.velocity >= -100.0)
 			heli.velocity += keyboardMotion.Surge * FRAME_TIME_SEC;
 
 		heli.direction = heli.yaw;
 
-
 		if (keyboardMotion.Surge > 0 && heli.pitch < 25.0) heli.pitch += keyboardMotion.Surge;
 		if (keyboardMotion.Surge < 0 && heli.pitch > -25.0) heli.pitch += keyboardMotion.Surge;
 	}
 	else
 	{
-		// Approaching 0.0
-		// pitch *= (1.0 - halflifeRate)
+		// No velocity, drag to stop
 		heli.pitch *= (1.0 - 0.1);
 		heli.velocity *= (1.0 - 0.01);
 	}
 
+	// Side / strafe velocity
 	if (keyboardMotion.Sway != MOTION_NONE && !collidedWithTerrain) {
 
 		if (heli.strafeVelocity <= 100.0 && heli.strafeVelocity >= -100.0)
@@ -836,30 +836,31 @@ void thinkHelicopter()
 	}
 	else
 	{
+		// No velocity, drag to stop
 		heli.roll *= (1.0 - 0.1);
 		heli.strafeVelocity *= (1.0 - 0.01);
 	}
 
+	// Vertical velocity
 	if (keyboardMotion.Heave != MOTION_NONE) {
-		if (heli.rotorVelocity < 15.0)
+		if (heli.rotorVelocity > 5.0)
 		{
-			heli.rotorVelocity += 0.10;
-		}
-		else
-		{
+			// Maximum lift velocity
 			if (heli.liftVelocity <= 45.0 && heli.liftVelocity >= -45.0)
 				heli.liftVelocity += keyboardMotion.Heave * FRAME_TIME_SEC;
 
-			if (checkCollision(heli.coordinates, heli.collisionBox, heli.collisionBox, heli.collisionBox))
-				if (keyboardMotion.Heave < 0)
-					heli.liftVelocity = 0.0;
+			// Don't allow going below terrain
+			if (collidedWithTerrain && keyboardMotion.Heave < 0)
+				heli.liftVelocity = 0.0;
 		}
 	}
 	else
 	{
+		// No velocity, drag to stop
 		heli.liftVelocity *= (1.0 - 0.1);
 	}
 
+	// Update heli coordinates
 	heli.coordinates.x -= sin(heli.direction * PI / 180.0) * heli.velocity;
 	heli.coordinates.z += cos(heli.direction * PI / 180.0) * heli.velocity;
 
@@ -868,19 +869,6 @@ void thinkHelicopter()
 
 	heli.coordinates.y += heli.liftVelocity;
 
-
-
 	heli.rotorRotation += heli.rotorVelocity;
 	if (heli.rotorRotation > 360.0) heli.rotorRotation = 0.0;
-}
-
-void drawFog()
-{
-	GLfloat fogColor[4] = { 0.8, 0.4, 0.0, 1.0 }; // orange
-	glFogi(GL_FOG_MODE, GL_LINEAR);
-	glFogfv(GL_FOG_COLOR, fogColor);
-	glFogf(GL_FOG_DENSITY, 0.25);
-	glHint(GL_FOG_HINT, GL_NICEST);
-	glFogf(GL_FOG_START, heli.size * 6); // start distance of the fog
-	glFogf(GL_FOG_END, heli.size * 50); // end distance of the fog
 }

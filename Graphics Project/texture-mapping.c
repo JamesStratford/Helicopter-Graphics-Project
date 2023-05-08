@@ -1,15 +1,25 @@
 #include "texture-mapping.h"
 
-GLint loadTexture(const char* filename, int width, int height)
+GLint loadTexture(const char* filename)
 {
 	GLint texture;
 	unsigned char* data;
 
-	if (width <= 0 || height <= 0) return 0;
+	// Part of the wingdi.h file
+	BITMAPFILEHEADER fileHeader;
+	BITMAPINFOHEADER infoHeader;
+	// -------------------------
 
 	FILE* file;
 	fopen_s(&file, filename, "rb");
-	if (file == NULL) return 0;
+
+	if (file == NULL) 
+		return 0;
+
+	fread(&fileHeader, sizeof(BITMAPFILEHEADER), 1, file);
+	fread(&infoHeader, sizeof(BITMAPINFOHEADER), 1, file);
+	int width = infoHeader.biWidth;
+	int height = infoHeader.biHeight;
 
 	int szData = width * height * 3;
 	data = (unsigned char*)malloc(szData);

@@ -24,7 +24,10 @@
     <ClCompile Include="texture-mapping.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="tex-obj-loader.c">
+    <ClCompile Include="obj-loader.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="terrain.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -38,7 +41,10 @@
     <ClInclude Include="texture-mapping.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="tex-obj-loader.h">
+    <ClInclude Include="obj-loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="terrain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
