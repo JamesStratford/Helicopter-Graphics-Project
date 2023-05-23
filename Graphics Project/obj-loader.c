@@ -326,11 +326,14 @@ void freeMeshObject(meshObject* object)
 		free(object->vertices);
 		free(object->texCoords);
 		free(object->normals);
-		for (int mtlNo = 0; mtlNo < object->numMtlObjects; mtlNo++) {
+		for (int mtlNo = 0; mtlNo < object->numMtlObjects; mtlNo++) 
+		{
 
 			if (object->mtlObjects[mtlNo]->faces != NULL) {
-				for (int i = 0; i < object->mtlObjects[mtlNo]->faceCount; i++) {
-					free(object->mtlObjects[mtlNo]->faces[i].points);
+				for (int i = 0; i < object->mtlObjects[mtlNo]->faceCount; i++) 
+				{
+					if (!object->mtlObjects[mtlNo]->faces[i].points)
+						free(object->mtlObjects[mtlNo]->faces[i].points);
 				}
 
 				free(object->mtlObjects[mtlNo]->faces);

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="animationcontroller-lights.c" />
     <ClCompile Include="helicopter.c" />
+    <ClCompile Include="particles.c" />
     <ClCompile Include="terrain.c" />
     <ClCompile Include="obj-loader.c" />
     <ClCompile Include="texture-mapping.c" />
@@ -28,6 +29,7 @@
   <ItemGroup>
     <ClInclude Include="helicopter.h" />
     <ClInclude Include="includes.h" />
+    <ClInclude Include="particles.h" />
     <ClInclude Include="terrain.h" />
     <ClInclude Include="obj-loader.h" />
     <ClInclude Include="texture-mapping.h" />
@@ -91,6 +93,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>freeglut\include\GL</AdditionalIncludeDirectories>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -110,6 +113,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>freeglut\include\GL</AdditionalIncludeDirectories>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

@@ -21,6 +21,7 @@
 #include "texture-mapping.h"
 #include "obj-loader.h"
 #include "terrain.h"
+#include "particles.h"
 
  /******************************************************************************
   * Animation & Timing Setup
@@ -156,6 +157,7 @@ void thinkHelicopter();
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
  ******************************************************************************/
 
+#define CLAMP(x, lower, upper) (min(upper, max(x, lower)))
 int windowWidth = 1000;
 int windowHeight = 1000;
 int worldDimensions[] = { 200, 200, 200 };
@@ -176,7 +178,8 @@ GLuint g_displayListIndex = 0;
 Helicopter heli;
 meshObject* zebra_obj;
 meshObject* tree_obj;
-Terrain terrain[10][10];
+Terrain terrain[TERRAIN_GRID_LEGNTH][TERRAIN_GRID_LEGNTH];
+ParticleSystem pSystem;
 
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
@@ -206,6 +209,7 @@ void main(int argc, char** argv)
 	glutSpecialUpFunc(specialKeyReleased);
 	glutIdleFunc(idle);
 	glutMouseFunc(mouse);
+	
 
 	// Record when we started rendering the very first frame (which should happen after we call glutMainLoop).
 	frameStartTime = (unsigned int)glutGet(GLUT_ELAPSED_TIME);
@@ -241,8 +245,7 @@ void display(void)
 	for (int i = 1; i <= g_displayListIndex; i++)
 		glCallList(i);
 
-
-
+	drawParticles(&pSystem);
 	glutSwapBuffers();
 }
 
@@ -500,7 +503,7 @@ void mouse(int button, int state, int x, int y)
 	else if (button == 1 && state == GLUT_UP)
 	{
 		freeCam = 0;
-		freeCamPitch = 0;
+		freeCamPitch = 0.0;
 		freeCamYaw = 0;
 	}
 }
@@ -515,18 +518,17 @@ void mouse(int button, int state, int x, int y)
 void init(void)
 {
 	// Setting random seed
-	// srand(time(NULL));
+	srand(time(NULL));
 
 	glClearColor(0.0, 0.0, 0.0, 1.0); // Set the background color to black
 	glMatrixMode(GL_PROJECTION); // Select the projection matrix
 	glLoadIdentity(); // Load the identity matrix
-	//glOrtho(-30.0, 30.0, -30.0, 30.0, 0.1, 5000.0); // Set the orthographic projection
 	
-	//glEnable(GL_FOG);
+	glEnable(GL_FOG);
 	GLfloat fogColor[4] = { 0.8, 0.4, 0.0, 1.0 }; // orange
 	glFogi(GL_FOG_MODE, GL_EXP);
 	glFogfv(GL_FOG_COLOR, fogColor);
-	glFogf(GL_FOG_DENSITY, 0.5);
+	glFogf(GL_FOG_DENSITY, 0.007);
 
 	glMatrixMode(GL_MODELVIEW); // Select the model view matrix
 	glLoadIdentity(); // Load the identity matrix
@@ -536,24 +538,32 @@ void init(void)
 
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
 	initHelicopter(&heli);
+
+	initParticleSystem(&pSystem);
 	//zebra_obj = loadMeshObject("zebra.obj", "zebra.mtl");
 	//tree_obj = loadMeshObject("Palm_Tree.obj", "Palm_Tree.mtl");
 	//terrain = loadMeshObject("untitled.obj", "untitled.mtl");
 	//initTerrain(&terrain);
 	//tree_obj = loadMeshObject("Palm_Tree.obj", NULL);
+	GLdouble terrainSize = 100;
 
-	int x = 1000;
-	int z = 1000;
-	for (int i = 0; i < 3; i++)
+	int x = terrainSize / 2.0;
+	int z = terrainSize / 2.0;
+
+	TerrainType types[] = { TERRAIN_1, TERRAIN_2, TERRAIN_3, TERRAIN_4 };
+	glNewList(acquireNewDisplayListNum(), GL_COMPILE);
+	for (int i = 0; i < TERRAIN_GRID_LEGNTH; i++)
 	{
-		for (int k = 0; k < 3; k++)
+		for (int k = 0; k < TERRAIN_GRID_LEGNTH; k++)
 		{
-			initTerrain(&terrain[i][k], x, z);
-			z += 2000;
+			int randIndex = rand() % 4;
+			initTerrain(&terrain[i][k], types[randIndex], x, z);
+			z += terrainSize;
 		}
-		z = 1000;
-		x += 2000;
+		z = terrainSize / 2.0;
+		x += terrainSize;
 	}
+	glEndList();
 
 }
 
@@ -568,6 +578,12 @@ void init(void)
 void think(void)
 {
 	thinkHelicopter();
+	//int i = (heli.coordinates.x) / terrain[0][0].postSize;
+	//int k = (heli.coordinates.z) / terrain[0][0].postSize;
+	//Terrain* terrain_t = &terrain[i][k];
+	createParticleInRandomRadius(&pSystem, terrain, &heli.coordinates, heli.size * 200);
+	thinkParticles(&pSystem, terrain);
+
 }
 
 /*
@@ -640,7 +656,8 @@ void setCamera()
 	if (!freeCam)
 	{
 		eye_x = heli.coordinates.x + sin(heli.yaw * PI / 180.0) * 10.0;
-		eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(heli.pitch * PI / 180.0) * 3.0;
+		//eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(heli.pitch * PI / 180.0) * 3.0;
+		eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(45.0 * PI / 180.0) * 3.0;
 		eye_z = (heli.coordinates.z) + cos((heli.yaw + 180) * PI / 180.0) * 10.0;
 	}
 	else
@@ -650,7 +667,7 @@ void setCamera()
 		if (freeCamPitch == 0 && freeCamYaw == 0)
 		{
 			freeCamYaw = heli.yaw;
-			freeCamPitch = heli.pitch;
+			freeCamPitch = 45.0;
 			freeCamMouseXStart = cursorPos.x;
 			freeCamMouseYStart = cursorPos.y;
 		}
@@ -697,61 +714,6 @@ void setCamera()
 	cameraPosition.z = eye_z;
 }
 
-/*
-  A simple ground plane in the XZ plane with vertex normals specified for lighting
-  the top face of the ground. The bottom face is not lit.
-*/
-GLint desert_tex;
-void basicGround(void)
-{
-	if (!desert_tex)
-		desert_tex = loadTexture("desert_texture.bmp", 1400, 1050);
-
-	glPushMatrix();
-
-	glEnable(GL_TEXTURE_2D);
-	// map the texture to the quad
-	glBindTexture(GL_TEXTURE_2D, desert_tex);
-
-
-	glPushMatrix();
-	for (int i = 0; i < 10; i++)
-	{
-		//glTranslated(0.0, 0.0, 400.0);
-		for (int k = 0; k < 10; k++)
-		{
-			glBegin(GL_QUADS);
-			glTexCoord2f(0.0f, 0.0f); glVertex3f(-200.0f, 0.0f, -200.0f);
-			glTexCoord2f(1.0f, 0.0f); glVertex3f(200.0f, 0.0f, -200.0f);
-			glTexCoord2f(1.0f, 1.0f); glVertex3f(200.0f, 0.0f, 200.0f);
-			glTexCoord2f(0.0f, 1.0f); glVertex3f(-200.0f, 0.0f, 200.0f);
-			glEnd();
-			glTranslated(400.0, 0.0, 0.0);
-		}
-		glTranslated(-400.0 * 10.0, 0.0, 400.0);
-	}
-
-	glDisable(GL_TEXTURE_2D);
-
-	glPopMatrix();
-}
-
-/*
-https://learnopengl.com/In-Practice/2D-Game/Collisions/Collision-detection
-https://developer.mozilla.org/en-US/docs/Games/Techniques/3D_collision_detection
-*/
-int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo)
-{
-	return (
-		positionOne.x - (collisionBoxOne.x / 2.0) <= positionTwo.x + (collisionBoxTwo.x / 2.0) &&
-		positionOne.x + (collisionBoxOne.x / 2.0) >= positionTwo.x - (collisionBoxTwo.x / 2.0) &&
-		positionOne.y - (collisionBoxOne.y / 2.0) <= positionTwo.y + (collisionBoxTwo.y / 2.0) &&
-		positionOne.y + (collisionBoxOne.y / 2.0) >= positionTwo.y - (collisionBoxTwo.x / 2.0) &&
-		positionOne.z - (collisionBoxOne.z / 2.0) <= positionTwo.z + (collisionBoxTwo.z / 2.0) &&
-		positionOne.z + (collisionBoxOne.z / 2.0) >= positionTwo.z - (collisionBoxTwo.z / 2.0)
-		);
-}
-
 int thinkHelicopterCollision()
 {
 	int out = 0;
@@ -759,7 +721,7 @@ int thinkHelicopterCollision()
 	// Acquire current terrain grid
 	int i = (heli.coordinates.x) / terrain[0][0].postSize;
 	int k = (heli.coordinates.z) / terrain[0][0].postSize;
-	if (checkCollisionTerrain(&terrain[i][k], &heli))
+	if (i < TERRAIN_GRID_LEGNTH && k < TERRAIN_GRID_LEGNTH && checkCollisionTerrain(&terrain[i][k], &heli))
 	{
 		out = 1;
 
@@ -800,15 +762,15 @@ void thinkHelicopter()
 
 	// Spin / rotate helicopter
 	if (keyboardMotion.Yaw != MOTION_NONE && !collidedWithTerrain) {
-		heli.yaw -= keyboardMotion.Yaw;
+		heli.yaw -= keyboardMotion.Yaw / 2.0;
 
-		if (heli.yaw >= 360) heli.yaw = 0;
-		if (heli.yaw < 0) heli.yaw = 360;
+		if (heli.yaw >= 360.0) heli.yaw = 0.0;
+		if (heli.yaw < 0.0) heli.yaw = 360.0;
 	}
 
 	// Forward / backward velocity
 	if (keyboardMotion.Surge != MOTION_NONE && !collidedWithTerrain) {
-		if (heli.velocity <= 100.0 && heli.velocity >= -100.0)
+		if (heli.velocity <= heli.maxSpeed && heli.velocity >= -heli.maxSpeed)
 			heli.velocity += keyboardMotion.Surge * FRAME_TIME_SEC;
 
 		heli.direction = heli.yaw;
@@ -826,7 +788,7 @@ void thinkHelicopter()
 	// Side / strafe velocity
 	if (keyboardMotion.Sway != MOTION_NONE && !collidedWithTerrain) {
 
-		if (heli.strafeVelocity <= 100.0 && heli.strafeVelocity >= -100.0)
+		if (heli.strafeVelocity <= heli.maxSpeed && heli.strafeVelocity >= -heli.maxSpeed)
 			heli.strafeVelocity += keyboardMotion.Sway * FRAME_TIME_SEC;
 
 		heli.direction = heli.yaw;
@@ -846,7 +808,7 @@ void thinkHelicopter()
 		if (heli.rotorVelocity > 5.0)
 		{
 			// Maximum lift velocity
-			if (heli.liftVelocity <= 45.0 && heli.liftVelocity >= -45.0)
+			if (heli.liftVelocity <= heli.maxSpeed / 2.0 && heli.liftVelocity >= -heli.maxSpeed / 2.0)
 				heli.liftVelocity += keyboardMotion.Heave * FRAME_TIME_SEC;
 
 			// Don't allow going below terrain
@@ -869,6 +831,13 @@ void thinkHelicopter()
 
 	heli.coordinates.y += heli.liftVelocity;
 
+	//heli.coordinates.x = CLAMP(heli.coordinates.x, 100, 0);
+
 	heli.rotorRotation += heli.rotorVelocity;
 	if (heli.rotorRotation > 360.0) heli.rotorRotation = 0.0;
+}
+
+void cleanUp()
+{
+	freeTerrain();
 }

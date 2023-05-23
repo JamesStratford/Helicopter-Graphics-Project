@@ -13,9 +13,7 @@ void initHelicopter(Helicopter* heli)
 	memcpy_s(heli->mat.specular, sizeof(float[4]), specular, sizeof(float[4]));
 	heli->mat.shininess = 100.0f;
 	heli->quadric = gluNewQuadric();
-	heli->size = 10.0;
-	//heli->coordinates.x = 5000;
-	//heli->coordinates.z = 5000;
+	heli->size = 2.0;
 
 	heli->collisionBox.x = heli->size / 2.0;
 	heli->collisionBox.y = heli->size * 1.45;
@@ -30,8 +28,10 @@ void initHelicopter(Helicopter* heli)
 	heli->strafeVelocity = 0.0;
 	heli->liftVelocity = 0.0;
 
-	//heli->texture = loadTexture("heli_texture.bmp", 612, 612);
-	heli->texture = loadTexture("zebra_body.bmp");
+	heli->maxSpeed = heli->size * 50.0;
+
+	heli->texture = loadTexture("heli_texture.bmp");
+	//heli->texture = loadTexture("zebra_body.bmp");
 
 }
 
@@ -159,7 +159,7 @@ void drawHelicopter(Helicopter* heli)
 	glTranslated(heli->coordinates.x, heli->coordinates.y, heli->coordinates.z);
 
 	// Yaw
-	glRotated(-(GLdouble)heli->yaw, 0.0, 1.0, 0.0);
+	glRotated(-heli->yaw, 0.0, 1.0, 0.0);
 
 	// Pitch
 	glRotated(heli->pitch, 1.0, 0.0, 0.0);

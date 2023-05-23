@@ -10,6 +10,13 @@
 //	int cols;
 //} TerrainGrid;
 
+typedef enum {
+	TERRAIN_1,
+	TERRAIN_2,
+	TERRAIN_3,
+	TERRAIN_4
+} TerrainType;
+
 typedef struct {
 	Pos3 terrainPosition;
 	meshObject* mesh;
@@ -23,6 +30,7 @@ typedef struct {
 	GLuint displayListIndex;
 } Terrain;
 
-void initTerrain(Terrain* ter, GLfloat x, GLfloat z);
+void initTerrain(Terrain* ter, TerrainType type, GLfloat x, GLfloat z);
 void renderGround(Terrain* ter);
 int checkCollisionTerrain(Terrain* ter, Helicopter* heli);
+void freeTerrain();

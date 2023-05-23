@@ -1,11 +1,11 @@
-# Blender 3.5.1 MTL File: 'terrain_1.blend'
+# Blender 3.5.1 MTL File: 'terrainTest.blend'
 # www.blender.org
 
 newmtl Material.001
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
-Kd 0.800000 0.416008 0.222809
-Ks 1.000000 1.000000 1.000000
+Kd 0.800000 0.128819 0.005364
+Ks 0.577273 0.577273 0.577273
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000

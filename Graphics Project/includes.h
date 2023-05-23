@@ -4,6 +4,8 @@
 #include "freeglut.h"
 
 #define PI		3.14159265359
+#define TERRAIN_GRID_LEGNTH 20
+
 
 typedef struct
 {

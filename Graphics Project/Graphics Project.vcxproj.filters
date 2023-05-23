@@ -30,6 +30,9 @@
     <ClCompile Include="terrain.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="particles.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helicopter.h">
@@ -45,6 +48,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="terrain.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="particles.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

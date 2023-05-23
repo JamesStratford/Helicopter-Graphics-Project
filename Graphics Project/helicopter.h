@@ -12,13 +12,14 @@ typedef struct
 	Pos3 collisionBox;
 	GLdouble rotorRotation;
 	GLdouble rotorVelocity;
-	GLint yaw;
+	GLdouble yaw;
 	GLdouble pitch;
 	GLdouble roll;
 	GLint direction;
 	GLdouble velocity;
 	GLdouble strafeVelocity;
 	GLdouble liftVelocity;
+	GLdouble maxSpeed;
 	GLuint texture;
 } Helicopter;
 
