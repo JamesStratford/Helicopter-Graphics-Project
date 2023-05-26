@@ -14,6 +14,11 @@ void initHelicopter(Helicopter* heli)
 	heli->mat.shininess = 100.0f;
 	heli->quadric = gluNewQuadric();
 	heli->size = 2.0;
+	heli->scaleFactor = SCALE;
+
+	heli->coordinates.x = TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2;
+	heli->coordinates.z = TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2;
+	heli->coordinates.y = 25;
 
 	heli->collisionBox.x = heli->size / 2.0;
 	heli->collisionBox.y = heli->size * 1.45;
@@ -31,8 +36,6 @@ void initHelicopter(Helicopter* heli)
 	heli->maxSpeed = heli->size * 50.0;
 
 	heli->texture = loadTexture("heli_texture.bmp");
-	//heli->texture = loadTexture("zebra_body.bmp");
-
 }
 
 void drawTopRotor(Helicopter* heli)

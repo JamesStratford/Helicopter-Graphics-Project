@@ -35,7 +35,7 @@ void createParticleInRandomRadius(ParticleSystem* pSystem, Terrain terrain[][TER
 		if (particle->life <= 0)
 		{
 			particle->size = (float)(rand() % 5) + 2;
-			particle->scaleFactor = 1.0f;
+			particle->scaleFactor = SCALE;
 			particle->life = 100.0f;
 			particle->velocity = (float)(rand() % 100) + 100.0f;
 			particle->alpha = (float)(rand() % 100) / 100.0f;
@@ -47,9 +47,9 @@ void createParticleInRandomRadius(ParticleSystem* pSystem, Terrain terrain[][TER
 			particle->coordinates.z = coordinates->z + distance * sin((angle * PI) / 180.0);
 			particle->coordinates.y = 0;
 
-			int i = max(0 ,(particle->coordinates.x) / terrain[0][0].postSize);
-			int k = max(0, (particle->coordinates.z) / terrain[0][0].postSize);
-			Terrain* ter = &terrain[i][k];
+			int ia = CLAMP((particle->coordinates.x) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
+			int ka = CLAMP((particle->coordinates.z) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
+			Terrain* ter = &terrain[ia][ka];
 
 			for (int i = 0; i < ter->mesh->vertexCount; i++)
 			{
@@ -123,9 +123,9 @@ void thinkParticles(ParticleSystem* pSystem, Terrain terrain[][TERRAIN_GRID_LEGN
 			particle->coordinates.x += pSystem->windDirection.x * particle->velocity * FRAME_TIME_SEC;
 			particle->coordinates.z += pSystem->windDirection.y * particle->velocity * FRAME_TIME_SEC;
 
-			int i = max(0, (particle->coordinates.x) / terrain[0][0].postSize);
-			int k = max(0, (particle->coordinates.z) / terrain[0][0].postSize);
-			Terrain* ter = &terrain[i][k];
+			int ia = CLAMP((particle->coordinates.x) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
+			int ka = CLAMP((particle->coordinates.z) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
+			Terrain* ter = &terrain[ia][ka];
 
 			for (int i = 0; i < ter->mesh->vertexCount; i++)
 			{

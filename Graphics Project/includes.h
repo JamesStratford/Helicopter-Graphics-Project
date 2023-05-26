@@ -3,8 +3,12 @@
 #include <Windows.h>
 #include "freeglut.h"
 
-#define PI		3.14159265359
+#define PI					3.14159265359
+#define TERRAIN_GRID_SIZE	100
 #define TERRAIN_GRID_LEGNTH 20
+#define SCALE				1.0f
+
+#define CLAMP(x, lower, upper) (min(upper, max(x, lower)))
 
 
 typedef struct

@@ -8,6 +8,7 @@ typedef struct
 	Material mat;
 	GLUquadric* quadric;
 	GLdouble size;
+	GLfloat scaleFactor;
 	Pos3 coordinates;
 	Pos3 collisionBox;
 	GLdouble rotorRotation;

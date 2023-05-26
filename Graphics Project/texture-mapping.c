@@ -21,11 +21,25 @@ GLint loadTexture(const char* filename)
 	int width = infoHeader.biWidth;
 	int height = infoHeader.biHeight;
 
-	int szData = width * height * 3;
+	int bitsPerPixel = infoHeader.biBitCount;
+	int szData = width * height * (bitsPerPixel / 8);
+
 	data = (unsigned char*)malloc(szData);
 
+	if (data == NULL)
+	{
+		fclose(file);
+		return 0;
+	}
+
 	// read texture data
-	fread(data, szData, 1, file);
+
+	if (fread(data, szData, 1, file) != 1)
+	{
+		free(data);
+		fclose(file);
+		return 0;
+	}
 	fclose(file);
 
 	glGenTextures(1, &texture);

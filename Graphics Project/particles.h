@@ -3,7 +3,7 @@
 #include "texture-mapping.h"
 #include "terrain.h"
 
-#define MAX_PARTICLES	2000
+#define MAX_PARTICLES	1000
 
 typedef struct
 {

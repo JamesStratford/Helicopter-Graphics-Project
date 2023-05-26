@@ -147,8 +147,6 @@ void diagnostics();
 void basicGround(void);
 void setCamera();
 
-int checkCollision(Pos3 positionOne, Pos3 collisionBoxOne, Pos3 positionTwo, Pos3 collisionBoxTwo);
-
 void thinkHelicopter();
 
 
@@ -157,16 +155,16 @@ void thinkHelicopter();
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
  ******************************************************************************/
 
-#define CLAMP(x, lower, upper) (min(upper, max(x, lower)))
 int windowWidth = 1000;
 int windowHeight = 1000;
 int worldDimensions[] = { 200, 200, 200 };
 Pos3 cameraPosition;
 int cameraZoomLevel = 0;
-GLdouble orthoLevel = 200.0;
+GLdouble orthoLevel = 20.0;
 int freeCam = 0;
 GLdouble freeCamYaw = 0.0;
 GLdouble freeCamPitch = 0.0;
+GLdouble camPitch = 45.0f;
 int freeCamMouseXStart = 0;
 int freeCamMouseYStart = 0;
 
@@ -179,6 +177,8 @@ Helicopter heli;
 meshObject* zebra_obj;
 meshObject* tree_obj;
 Terrain terrain[TERRAIN_GRID_LEGNTH][TERRAIN_GRID_LEGNTH];
+Skybox skybox;
+Moon moon;
 ParticleSystem pSystem;
 
 /******************************************************************************
@@ -244,6 +244,9 @@ void display(void)
 
 	for (int i = 1; i <= g_displayListIndex; i++)
 		glCallList(i);
+
+	drawMoon(&moon);
+	drawSkybox(&skybox);
 
 	drawParticles(&pSystem);
 	glutSwapBuffers();
@@ -528,13 +531,10 @@ void init(void)
 	GLfloat fogColor[4] = { 0.8, 0.4, 0.0, 1.0 }; // orange
 	glFogi(GL_FOG_MODE, GL_EXP);
 	glFogfv(GL_FOG_COLOR, fogColor);
-	glFogf(GL_FOG_DENSITY, 0.007);
+	glFogf(GL_FOG_DENSITY, 0.002);
 
 	glMatrixMode(GL_MODELVIEW); // Select the model view matrix
 	glLoadIdentity(); // Load the identity matrix
-
-	initLights();
-
 
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
 	initHelicopter(&heli);
@@ -550,14 +550,13 @@ void init(void)
 	int x = terrainSize / 2.0;
 	int z = terrainSize / 2.0;
 
-	TerrainType types[] = { TERRAIN_1, TERRAIN_2, TERRAIN_3, TERRAIN_4 };
 	glNewList(acquireNewDisplayListNum(), GL_COMPILE);
 	for (int i = 0; i < TERRAIN_GRID_LEGNTH; i++)
 	{
 		for (int k = 0; k < TERRAIN_GRID_LEGNTH; k++)
 		{
 			int randIndex = rand() % 4;
-			initTerrain(&terrain[i][k], types[randIndex], x, z);
+			initTerrain(&terrain[i][k], x, z);
 			z += terrainSize;
 		}
 		z = terrainSize / 2.0;
@@ -565,6 +564,9 @@ void init(void)
 	}
 	glEndList();
 
+	initMoon(&moon);
+	initSkybox(&skybox);
+	initLights();
 }
 
 /*
@@ -616,7 +618,7 @@ void initLights(void)
 	glEnable(GL_LIGHT0);
 
 	// set light position
-	GLfloat lightPosition[] = { 5.0f, 200.0f, 0.0f, 1.0f };
+	GLfloat lightPosition[] = { moon.coordinates.x, moon.coordinates.y, moon.coordinates.z, 1.0f };
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 
 	// turn on depth testing so that polygons are drawn in the correct order
@@ -657,7 +659,9 @@ void setCamera()
 	{
 		eye_x = heli.coordinates.x + sin(heli.yaw * PI / 180.0) * 10.0;
 		//eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(heli.pitch * PI / 180.0) * 3.0;
-		eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(45.0 * PI / 180.0) * 3.0;
+		eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(camPitch * PI / 180.0) * 3.0;
+
+		//eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(45.0 * PI / 180.0) * 3.0;
 		eye_z = (heli.coordinates.z) + cos((heli.yaw + 180) * PI / 180.0) * 10.0;
 	}
 	else
@@ -667,13 +671,13 @@ void setCamera()
 		if (freeCamPitch == 0 && freeCamYaw == 0)
 		{
 			freeCamYaw = heli.yaw;
-			freeCamPitch = 45.0;
+			freeCamPitch = camPitch;
 			freeCamMouseXStart = cursorPos.x;
 			freeCamMouseYStart = cursorPos.y;
 		}
 		freeCamYaw -= (freeCamMouseXStart - cursorPos.x) / 360.0;
 		freeCamPitch += (freeCamMouseYStart - cursorPos.y) / 360.0;
-
+		camPitch = freeCamPitch;
 		eye_x = heli.coordinates.x + sin(freeCamYaw * PI / 180.0) * 10.0;
 		eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(freeCamPitch * PI / 180.0) * 3.0;
 		eye_z = (heli.coordinates.z) + cos((freeCamYaw + 180) * PI / 180.0) * 10.0;
@@ -714,22 +718,20 @@ void setCamera()
 	cameraPosition.z = eye_z;
 }
 
-int thinkHelicopterCollision()
+void thinkHelicopterCollision(int* collidedWithTerrain, int* collidedWithSkybox)
 {
-	int out = 0;
-	
 	// Acquire current terrain grid
-	int i = (heli.coordinates.x) / terrain[0][0].postSize;
-	int k = (heli.coordinates.z) / terrain[0][0].postSize;
-	if (i < TERRAIN_GRID_LEGNTH && k < TERRAIN_GRID_LEGNTH && checkCollisionTerrain(&terrain[i][k], &heli))
+	int ia = CLAMP((heli.coordinates.x) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
+	int ka = CLAMP((heli.coordinates.z) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
+	if (checkCollisionTerrain(&terrain[ia][ka], &heli))
 	{
-		out = 1;
+		*collidedWithTerrain = 1;
 
 		// Degrade angles and speed quickly
 		heli.pitch *= (1.0 - 0.1);
-		heli.velocity *= (1.0 - 0.25);
+		heli.velocity *= (1.0 - 1);
 		heli.roll *= (1.0 - 0.1);
-		heli.strafeVelocity *= (1.0 - 0.25);
+		heli.strafeVelocity *= (1.0 - 1);
 
 		if (keyboardMotion.Heave <= 0)
 		{
@@ -752,13 +754,25 @@ int thinkHelicopterCollision()
 		// Rotor maxium value of 25.0
 		heli.rotorVelocity = min(heli.rotorVelocity, 25.0);
 	}
-	
-	return out;
+
+	if (checkCollisionSkybox(&skybox, &heli))
+	{
+		*collidedWithSkybox = 1;
+
+		// Degrade angles and speed quickly
+		heli.pitch *= (1.0 - 0.1);
+		heli.velocity *= (1.0 - 1);
+		heli.roll *= (1.0 - 0.1);
+		heli.strafeVelocity *= (1.0 - 1);
+	}
 }
 
 void thinkHelicopter()
 {
-	int collidedWithTerrain = thinkHelicopterCollision();
+	int collidedWithTerrain = 0;
+	int collidedWithSkybox = 0;
+
+	thinkHelicopterCollision(&collidedWithTerrain, &collidedWithSkybox);
 
 	// Spin / rotate helicopter
 	if (keyboardMotion.Yaw != MOTION_NONE && !collidedWithTerrain) {
@@ -810,6 +824,10 @@ void thinkHelicopter()
 			// Maximum lift velocity
 			if (heli.liftVelocity <= heli.maxSpeed / 2.0 && heli.liftVelocity >= -heli.maxSpeed / 2.0)
 				heli.liftVelocity += keyboardMotion.Heave * FRAME_TIME_SEC;
+
+			// Don't allow going above skybox
+			if (collidedWithSkybox && keyboardMotion.Heave > 0)
+				heli.liftVelocity = 0.0;
 
 			// Don't allow going below terrain
 			if (collidedWithTerrain && keyboardMotion.Heave < 0)

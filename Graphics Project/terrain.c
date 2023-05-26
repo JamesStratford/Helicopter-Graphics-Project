@@ -1,46 +1,19 @@
 #include "terrain.h"
-meshObject* terrainTestMesh = NULL;
+#include <math.h>
 
-meshObject* terrainOneMesh = NULL;
-meshObject* terrainTwoMesh = NULL;
-meshObject* terrainThreeMesh = NULL;
-meshObject* terrainFourMesh = NULL;
+meshObject* terrainTestMesh = NULL;
 GLint desertTexture = NULL;
 
 
-void initTerrain(Terrain* ter, TerrainType type, GLfloat x, GLfloat z)
+void initTerrain(Terrain* ter, GLfloat x, GLfloat z)
 {
 	if (!terrainTestMesh)
-		terrainTestMesh = loadMeshObject("terrain.obj", "terrain.mtl");
-	if (!terrainOneMesh)
-		terrainOneMesh = loadMeshObject("terrain_1.obj", "terrain_1.mtl");
-	if (!terrainTwoMesh)
-		terrainTwoMesh = loadMeshObject("terrain_2.obj", "terrain_2.mtl");
-	if (!terrainThreeMesh)
-		terrainThreeMesh = loadMeshObject("terrain_3.obj", "terrain_3.mtl");
-	if (!terrainFourMesh)
-		terrainFourMesh = loadMeshObject("terrain_4.obj", "terrain_4.mtl");
-	if (!desertTexture)
-		desertTexture = loadTexture("desert_texture.bmp");
+		terrainTestMesh = loadMeshObject("terrain_1.obj", "terrain_1.mtl");
 
-	switch(type)
-	{
-	case TERRAIN_1:
-		ter->mesh = terrainTestMesh;
-		break;
-	case TERRAIN_2:
-		ter->mesh = terrainTestMesh;
-		break;
-	case TERRAIN_3:
-		ter->mesh = terrainTestMesh;
-		break;
-	case TERRAIN_4:
-		ter->mesh = terrainTestMesh;
-		break;
-	}
+	ter->mesh = terrainTestMesh;
 
 	ter->baseSize = 100.0;
-	ter->scaleFactor = 1.0;
+	ter->scaleFactor = SCALE;
 	ter->postSize = ter->baseSize * ter->scaleFactor;
 	ter->displayListIndex = acquireNewDisplayListNum();
 	ter->texture = NULL;
@@ -56,6 +29,75 @@ void initTerrain(Terrain* ter, TerrainType type, GLfloat x, GLfloat z)
 	glEndList();
 }
 
+void initSkybox(Skybox* skybox)
+{
+	skybox->quadric = gluNewQuadric();
+	skybox->texture = loadTexture("night.bmp");
+	skybox->size = 1000;
+	skybox->scaleFactor = SCALE;
+	skybox->coordinates.x = 1000;
+	skybox->coordinates.y = 1000;
+	skybox->coordinates.z = 0;
+}
+
+void initMoon(Moon* moon)
+{
+	moon->coordinates.x = 550;
+	moon->coordinates.y = 800;
+	moon->coordinates.z = 1000;
+
+	moon->baseSize = 50;
+	moon->scaleFactor = SCALE;
+	moon->quadric = gluNewQuadric();
+	moon->texture = loadTexture("moon.bmp");
+
+	GLfloat ambient[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat specular[] = { 1.0, 1.0, 1.0, 1.0 };
+
+	memcpy_s(moon->mat.ambient, sizeof(float[4]), ambient, sizeof(float[4]));
+	memcpy_s(moon->mat.diffuse, sizeof(float[4]), diffuse, sizeof(float[4]));
+	memcpy_s(moon->mat.specular, sizeof(float[4]), specular, sizeof(float[4]));
+	moon->mat.shininess = 100.0f;
+}
+
+void drawMoon(Moon* moon)
+{
+	glPushMatrix();
+	glTranslated(moon->coordinates.x, moon->coordinates.y, moon->coordinates.z);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, moon->mat.ambient);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, moon->mat.diffuse);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, moon->mat.specular);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, moon->mat.shininess);
+
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, moon->texture);
+	glScaled(moon->scaleFactor, moon->scaleFactor, moon->scaleFactor);
+	gluQuadricTexture(moon->quadric, GL_TRUE);
+	gluSphere(moon->quadric, moon->baseSize * moon->scaleFactor, 360, 360);
+	glDisable(GL_TEXTURE_2D);
+
+	glPopMatrix();
+}
+
+void drawSkybox(Skybox* skybox)
+{
+	glPushMatrix();
+	float xyPoint = TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2;
+	glTranslated(xyPoint, 0, xyPoint);
+
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_FRONT);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, skybox->texture);
+	gluQuadricTexture(skybox->quadric, TRUE);
+	gluSphere(skybox->quadric, skybox->size, 360, 360);
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_CULL_FACE);
+
+	glPopMatrix();
+}
+
 void renderGround(Terrain* ter)
 {
 	glPushMatrix();
@@ -68,6 +110,18 @@ void renderGround(Terrain* ter)
 	glPopMatrix();
 }
 
+int checkCollisionSkybox(Skybox* skybox, Helicopter* heli)
+{
+	double collisionRadius = skybox->size - skybox->size * 0.01;
+	double distance = sqrt(
+		pow(heli->coordinates.x - skybox->coordinates.x, 2) +
+		pow(heli->coordinates.y - skybox->coordinates.z, 2) +
+		pow(heli->coordinates.z - skybox->coordinates.y, 2)
+	);
+
+	return (distance >= collisionRadius);
+}
+
 int checkCollisionTerrain(Terrain* ter, Helicopter* heli)
 {
 	// Check if the object's z coordinate (height) is less than or equal to the height of the terrain at its x and y coordinates
@@ -78,8 +132,6 @@ int checkCollisionTerrain(Terrain* ter, Helicopter* heli)
 	float yDelta = heli->collisionBox.y / 2.0;
 	float zDelta = heli->collisionBox.z / 2.0;
 	
-	//x -= ter->arrayIndexX * ter->postSize;
-	//z -= ter->arrayIndexZ * ter->postSize;
 	x -= ter->terrainPosition.x;
 	z -= ter->terrainPosition.z;
 	y -= ter->terrainPosition.y;
