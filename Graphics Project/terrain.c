@@ -112,7 +112,7 @@ void renderGround(Terrain* ter)
 
 int checkCollisionSkybox(Skybox* skybox, Helicopter* heli)
 {
-	double collisionRadius = skybox->size - skybox->size * 0.01;
+	double collisionRadius = skybox->size - skybox->size * 0.01; // small buffer before edge
 	double distance = sqrt(
 		pow(heli->coordinates.x - skybox->coordinates.x, 2) +
 		pow(heli->coordinates.y - skybox->coordinates.z, 2) +
@@ -136,8 +136,6 @@ int checkCollisionTerrain(Terrain* ter, Helicopter* heli)
 	z -= ter->terrainPosition.z;
 	y -= ter->terrainPosition.y;
 
-
-	//float collisionDistance = ter->scaleFactor * 0.15f;
 	for (int i = 0; i < ter->mesh->vertexCount; i++)
 	{
 		if (x + xDelta > ter->mesh->vertices[i].x * ter->scaleFactor - xDelta && x - xDelta < ter->mesh->vertices[i].x * ter->scaleFactor + xDelta)

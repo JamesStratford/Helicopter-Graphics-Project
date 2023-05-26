@@ -62,7 +62,9 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 	// Pre-parse the file to determine how many vertices, texture coordinates, normals, and faces we have.
 	while (fgets(line, (unsigned)_countof(line), inFile))
 	{
-		if (sscanf_s(line, "%9s", keyword, (unsigned)_countof(keyword)) == 1) {
+		if (sscanf_s(line, "%9s", keyword, (unsigned)_countof(keyword)) == 1) 
+		{
+			keyword[9] = '\0';  // ensure null termination
 			if (strcmp(keyword, "v") == 0) {
 				object->vertexCount++;
 			}
@@ -105,7 +107,9 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 	int mtlIndex = -1;
 	while (fgets(line, (unsigned)_countof(line), inFile))
 	{
-		if (sscanf_s(line, "%9s", keyword, (unsigned)_countof(keyword)) == 1) {
+		if (sscanf_s(line, "%9s", keyword, (unsigned)_countof(keyword)) == 1) 
+		{
+			keyword[9] = '\0';  // ensure null termination
 			if (strcmp(keyword, "v") == 0) {
 				vec3d vertex = { 0, 0, 0 };
 				sscanf_s(line, "%*s %f %f %f", &vertex.x, &vertex.y, &vertex.z);
@@ -150,15 +154,18 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 	FILE* mtlFile;
 	fopen_s(&mtlFile, mtlFileName, "r");
 
-	if (mtlFile == NULL) {
+	if (mtlFile == NULL) 
+	{
 		return object;
 	}
 	object->hasMtlChildren = 1;
-
 	mtlIndex = -1;
+
 	while (fgets(line, (unsigned)_countof(line), mtlFile))
 	{
-		if (sscanf_s(line, "%9s", keyword, (unsigned)_countof(keyword)) == 1) {
+		if (sscanf_s(line, "%9s", keyword, (unsigned)_countof(keyword)) == 1) 
+		{
+			keyword[9] = '\0';  // ensure null termination
 			if (strcmp(keyword, "newmtl") == 0) {
 				char name[50];
 				sscanf_s(line, "%*s %s\0", name, sizeof(name));
@@ -200,8 +207,10 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 /*
 	Render the faces of the specified Mesh Object in OpenGL.
 */
-void renderMeshObject(meshObject* object) {
-	for (int mtlNo = 0; mtlNo < object->numMtlObjects; mtlNo++) {
+void renderMeshObject(meshObject* object) 
+{
+	for (int mtlNo = 0; mtlNo < object->numMtlObjects; mtlNo++) 
+	{
 		if (object->hasMtlChildren)
 		{
 			glShadeModel(GL_SMOOTH);
@@ -242,7 +251,8 @@ void renderMeshObject(meshObject* object) {
 /*
 	Initialise the specified Mesh Object Face from a string of face data in the Wavefront OBJ file format.
 */
-void initMeshObjectFace(meshObjectFace* face, char* faceData, int maxFaceDataLength) {
+void initMeshObjectFace(meshObjectFace* face, char* faceData, int maxFaceDataLength) 
+{
 	int maxPoints = 0;
 	int inWhitespace = 0;
 	const char* delimiter = " ";
@@ -271,11 +281,13 @@ void initMeshObjectFace(meshObjectFace* face, char* faceData, int maxFaceDataLen
 
 	// Parse the input string to extract actual face points (if we're expecting any).
 	face->pointCount = 0;
-	if (maxPoints > 0) {
+	if (maxPoints > 0) 
+	{
 		face->points = malloc(sizeof(meshObjectFacePoint) * maxPoints);
 
 		token = strtok_s(faceData, delimiter, &context);
-		while ((token != NULL) && (face->pointCount < maxPoints)) {
+		while ((token != NULL) && (face->pointCount < maxPoints)) 
+		{
 			meshObjectFacePoint parsedPoint = { 0, 0, 0 }; // At this point we're working with 1-based indices from the OBJ file.
 
 			if (strcmp(token, "f") != 0) {
@@ -303,12 +315,24 @@ void initMeshObjectFace(meshObjectFace* face, char* faceData, int maxFaceDataLen
 		}
 
 		// If we have fewer points than expected, free the unused memory.
-		if (face->pointCount == 0) {
+		if (face->pointCount == 0) 
+		{
 			free(face->points);
 			face->points = NULL;
 		}
 		else if (face->pointCount < maxPoints) {
-			realloc(face->points, sizeof(meshObjectFacePoint) * face->pointCount);
+			meshObjectFacePoint* temp = realloc(face->points, sizeof(meshObjectFacePoint) * face->pointCount);
+			if (temp == NULL) 
+			{
+				// Handle the error, e.g., by freeing memory and exiting
+				free(face->points);
+				fprintf(stderr, "Error reallocating memory.\n");
+				exit(1);
+			}
+			else 
+			{
+				face->points = temp;
+			}
 		}
 	}
 	else
@@ -324,22 +348,32 @@ void freeMeshObject(meshObject* object)
 {
 	if (object != NULL) {
 		free(object->vertices);
+		object->vertices = NULL;
+
 		free(object->texCoords);
+		object->texCoords = NULL;
+
 		free(object->normals);
+		object->normals = NULL;
+
 		for (int mtlNo = 0; mtlNo < object->numMtlObjects; mtlNo++) 
 		{
-
 			if (object->mtlObjects[mtlNo]->faces != NULL) {
 				for (int i = 0; i < object->mtlObjects[mtlNo]->faceCount; i++) 
 				{
-					if (!object->mtlObjects[mtlNo]->faces[i].points)
+					if (object->mtlObjects[mtlNo]->faces[i].points != NULL) 
+					{
 						free(object->mtlObjects[mtlNo]->faces[i].points);
+						object->mtlObjects[mtlNo]->faces[i].points = NULL;
+					}
 				}
 
 				free(object->mtlObjects[mtlNo]->faces);
+				object->mtlObjects[mtlNo]->faces = NULL;
 			}
 		}
 
 		free(object);
+		object = NULL;
 	}
 }
