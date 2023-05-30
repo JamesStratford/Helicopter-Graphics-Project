@@ -90,9 +90,9 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 		}
 	}
 
-	if (object->vertexCount > 0)object->vertices = malloc(sizeof(vec3d) * object->vertexCount);
-	if (object->texCoordCount > 0) object->texCoords = malloc(sizeof(vec2d) * object->texCoordCount);
-	if (object->normalCount > 0) object->normals = malloc(sizeof(vec3d) * object->normalCount);
+	if (object->vertexCount > 0)object->vertices = malloc(sizeof(vec3f) * object->vertexCount);
+	if (object->texCoordCount > 0) object->texCoords = malloc(sizeof(vec2f) * object->texCoordCount);
+	if (object->normalCount > 0) object->normals = malloc(sizeof(vec3f) * object->normalCount);
 	for (int i = 0; i < object->numMtlObjects; i++)
 	{
 		if (object->mtlObjects[i]->faceCount > 0) {
@@ -111,21 +111,21 @@ meshObject* loadMeshObject(char* fileName, char* mtlFileName)
 		{
 			keyword[9] = '\0';  // ensure null termination
 			if (strcmp(keyword, "v") == 0) {
-				vec3d vertex = { 0, 0, 0 };
+				vec3f vertex = { 0, 0, 0 };
 				sscanf_s(line, "%*s %f %f %f", &vertex.x, &vertex.y, &vertex.z);
-				memcpy_s(&object->vertices[currentVertexIndex], sizeof(vec3d), &vertex, sizeof(vec3d));
+				memcpy_s(&object->vertices[currentVertexIndex], sizeof(vec3f), &vertex, sizeof(vec3f));
 				currentVertexIndex++;
 			}
 			else if (strcmp(keyword, "vt") == 0) {
-				vec2d texCoord = { 0, 0 };
+				vec2f texCoord = { 0, 0 };
 				sscanf_s(line, "%*s %f %f", &texCoord.x, &texCoord.y);
-				memcpy_s(&object->texCoords[currentTexCoordIndex], sizeof(vec2d), &texCoord, sizeof(vec2d));
+				memcpy_s(&object->texCoords[currentTexCoordIndex], sizeof(vec2f), &texCoord, sizeof(vec2f));
 				currentTexCoordIndex++;
 			}
 			else if (strcmp(keyword, "vn") == 0) {
-				vec3d normal = { 0, 0, 0 };
+				vec3f normal = { 0, 0, 0 };
 				sscanf_s(line, "%*s %f %f %f", &normal.x, &normal.y, &normal.z);
-				memcpy_s(&object->normals[currentNormalIndex], sizeof(vec3d), &normal, sizeof(vec3d));
+				memcpy_s(&object->normals[currentNormalIndex], sizeof(vec3f), &normal, sizeof(vec3f));
 				currentNormalIndex++;
 			}
 			else if (strcmp(keyword, "usemtl") == 0) {
@@ -228,16 +228,16 @@ void renderMeshObject(meshObject* object)
 					meshObjectFacePoint point = face.points[pointNo];
 
 					if (point.normalIndex >= 0) {
-						vec3d normal = object->normals[point.normalIndex];
+						vec3f normal = object->normals[point.normalIndex];
 						glNormal3d(normal.x, normal.y, normal.z);
 					}
 
 					if (point.texCoordIndex >= 0) {
-						vec2d texCoord = object->texCoords[point.texCoordIndex];
+						vec2f texCoord = object->texCoords[point.texCoordIndex];
 						glTexCoord2d(texCoord.x, texCoord.y);
 					}
 
-					vec3d vertex = object->vertices[point.vertexIndex];
+					vec3f vertex = object->vertices[point.vertexIndex];
 
 					glVertex3f(vertex.x, vertex.y, vertex.z);
 				}

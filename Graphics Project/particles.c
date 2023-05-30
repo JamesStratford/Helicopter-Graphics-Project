@@ -5,9 +5,9 @@ extern const float FRAME_TIME_SEC;
 
 void initParticleSystem(ParticleSystem* pSystem)
 {
-	GLfloat ambient[] = { 0.76, 0.69, 0.57, 1.0 };
-	GLfloat diffuse[] = { 0.76, 0.69, 0.57, 1.0 };
-	GLfloat specular[] = { 0.0, 0.0, 0.0, 1.0 };
+	GLfloat ambient[] = { 0.76, 0.69, 0.57, 0.5 };
+	GLfloat diffuse[] = { 0.76, 0.69, 0.57, 0.5 };
+	GLfloat specular[] = { 0.0, 0.0, 0.0, 0.5 };
 	GLfloat shininess = 0.0;
 	
 	pSystem->kingQuadric = gluNewQuadric();
@@ -27,7 +27,7 @@ void initParticleSystem(ParticleSystem* pSystem)
 	pSystem->windDirection.y = -1.0;
 }
 
-void createParticleInRandomRadius(ParticleSystem* pSystem, Terrain terrain[][TERRAIN_GRID_LEGNTH], Pos3* coordinates, GLfloat radius)
+void createParticleInRandomRadius(ParticleSystem* pSystem, Terrain* ter, Pos3* coordinates, GLfloat radius)
 {
 	for (int i = 0; i < pSystem->numOfParticles; i++)
 	{
@@ -47,18 +47,21 @@ void createParticleInRandomRadius(ParticleSystem* pSystem, Terrain terrain[][TER
 			particle->coordinates.z = coordinates->z + distance * sin((angle * PI) / 180.0);
 			particle->coordinates.y = 0;
 
-			int ia = CLAMP((particle->coordinates.x) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
-			int ka = CLAMP((particle->coordinates.z) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
-			Terrain* ter = &terrain[ia][ka];
+			particle->collision.x = particle->size / 2.0f;
+			particle->collision.y = particle->size / 2.0f;
+			particle->collision.z = particle->size;
 
-			for (int i = 0; i < ter->mesh->vertexCount; i++)
+			if (ter->mesh)
 			{
-				if (particle->coordinates.x < ter->mesh->vertices[i].x + ter->terrainPosition.x + 1 && particle->coordinates.x > ter->mesh->vertices[i].x + ter->terrainPosition.x - 1)
-					if (particle->coordinates.z < ter->mesh->vertices[i].z + ter->terrainPosition.z + 1 && particle->coordinates.z > ter->mesh->vertices[i].z + ter->terrainPosition.z - 1)
-					{
-						particle->coordinates.y = ter->mesh->vertices[i].y + 5.0f;
-						break;
-					}
+				for (int i = 0; i < ter->mesh->vertexCount; i++)
+				{
+					if (particle->coordinates.x < ter->mesh->vertices[i].x + ter->terrainPosition.x + 1 && particle->coordinates.x > ter->mesh->vertices[i].x + ter->terrainPosition.x - 1)
+						if (particle->coordinates.z < ter->mesh->vertices[i].z + ter->terrainPosition.z + 1 && particle->coordinates.z > ter->mesh->vertices[i].z + ter->terrainPosition.z - 1)
+						{
+							particle->coordinates.y = ter->mesh->vertices[i].y + 5.0f;
+							break;
+						}
+				}
 			}
 			break;
 		}
@@ -81,8 +84,6 @@ void drawParticle(Particle* particle)
 		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, particle->mat.diffuse);
 		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, particle->mat.specular);
 		glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, particle->mat.shininess);
-		
-		glEnable(GL_COLOR_MATERIAL);
 
 		gluQuadricTexture(particle->quadric, GL_TRUE);
 		glBindTexture(GL_TEXTURE_2D, particle->sprite);
@@ -91,11 +92,7 @@ void drawParticle(Particle* particle)
 		glRotated(45, 0, 1, 0);
 		glScaled(1, 1, 2);
 
-
-		glColor4f(1.0f, 0.5f, 0.0f, particle->alpha);
 		gluSphere(particle->quadric, particle->size * particle->scaleFactor, 7, 7);
-
-		glDisable(GL_COLOR_MATERIAL);
 		
 		glDisable(GL_TEXTURE_2D);
 		glDisable(GL_BLEND);
@@ -112,7 +109,7 @@ void drawParticles(ParticleSystem* pSystem)
 }
 
 
-void thinkParticles(ParticleSystem* pSystem, Terrain terrain[][TERRAIN_GRID_LEGNTH])
+void thinkParticles(ParticleSystem* pSystem, Terrain* ter)
 {
 	for (int i = 0; i < pSystem->numOfParticles; i++)
 	{
@@ -123,18 +120,11 @@ void thinkParticles(ParticleSystem* pSystem, Terrain terrain[][TERRAIN_GRID_LEGN
 			particle->coordinates.x += pSystem->windDirection.x * particle->velocity * FRAME_TIME_SEC;
 			particle->coordinates.z += pSystem->windDirection.y * particle->velocity * FRAME_TIME_SEC;
 
-			int ia = CLAMP((particle->coordinates.x) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
-			int ka = CLAMP((particle->coordinates.z) / terrain[0][0].postSize, 0, TERRAIN_GRID_LEGNTH - 1);
-			Terrain* ter = &terrain[ia][ka];
-
-			for (int i = 0; i < ter->mesh->vertexCount; i++)
+			if (ter->mesh)
 			{
-				if (particle->coordinates.x < ter->mesh->vertices[i].x + ter->terrainPosition.x + 1 && particle->coordinates.x > ter->mesh->vertices[i].x + ter->terrainPosition.x - 1)
-					if (particle->coordinates.z < ter->mesh->vertices[i].z + ter->terrainPosition.z + 1 && particle->coordinates.z > ter->mesh->vertices[i].z + ter->terrainPosition.z - 1)
-					{
-						particle->coordinates.y = ter->mesh->vertices[i].y + (particle->size * particle->scaleFactor);
-						break;
-					}
+				Pos3* pos = getCollisionTerrain(ter, &particle->coordinates, &particle->collision);
+				if (pos)
+					particle->coordinates.y = pos->y + particle->size * particle->scaleFactor;
 			}
 		}
 	}

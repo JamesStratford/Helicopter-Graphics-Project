@@ -9,12 +9,12 @@ typedef struct {
 	GLfloat x;
 	GLfloat y;
 	GLfloat z;
-} vec3d;
+} vec3f;
 
 typedef struct {
 	GLfloat x;
 	GLfloat y;
-} vec2d;
+} vec2f;
 
 typedef struct {
 	int vertexIndex;	// Index of this vertex in the object's vertices array
@@ -41,11 +41,11 @@ typedef struct {
 
 typedef struct {
 	int vertexCount;
-	vec3d* vertices;
+	vec3f* vertices;
 	int texCoordCount;
-	vec2d* texCoords;
+	vec2f* texCoords;
 	int normalCount;
-	vec3d* normals;
+	vec3f* normals;
 	//int faceCount;
 	//meshObjectFace* faces;
 	int hasMtlChildren;

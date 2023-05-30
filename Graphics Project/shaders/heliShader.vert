@@ -1,0 +1,15 @@
+#version 130  
+
+// outgoing normal (N) and vertex (v) for fragment shader
+varying vec3 N;
+varying vec3 v;    
+
+void main(void)  
+{     
+    // apply the model view matrix
+    v = vec3(gl_ModelViewMatrix * gl_Vertex);
+	// normalize the normals      
+    N = normalize(gl_NormalMatrix * gl_Normal);
+	
+   	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+}

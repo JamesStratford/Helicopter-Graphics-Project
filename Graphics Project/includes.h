@@ -1,15 +1,16 @@
 #pragma once
 #include <stdio.h>
-#include <Windows.h>
+#include "glew.h"
 #include "freeglut.h"
+#include <Windows.h>
+#include <math.h>
 
 #define PI					3.14159265359
 #define TERRAIN_GRID_SIZE	100
 #define TERRAIN_GRID_LEGNTH 20
-#define SCALE				1.0f
+#define SCALE				2.0f
 
 #define CLAMP(x, lower, upper) (min(upper, max(x, lower)))
-
 
 typedef struct
 {

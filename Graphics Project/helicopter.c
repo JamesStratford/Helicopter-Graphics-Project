@@ -13,16 +13,16 @@ void initHelicopter(Helicopter* heli)
 	memcpy_s(heli->mat.specular, sizeof(float[4]), specular, sizeof(float[4]));
 	heli->mat.shininess = 100.0f;
 	heli->quadric = gluNewQuadric();
-	heli->size = 2.0;
+	heli->size = 10.0;
 	heli->scaleFactor = SCALE;
 
-	heli->coordinates.x = TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2;
-	heli->coordinates.z = TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2;
-	heli->coordinates.y = 25;
+	heli->coordinates.x = (TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2) * heli->scaleFactor;
+	heli->coordinates.z = (TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2) * heli->scaleFactor;
+	heli->coordinates.y = 25 * heli->scaleFactor;
 
-	heli->collisionBox.x = heli->size / 2.0;
-	heli->collisionBox.y = heli->size * 1.45;
-	heli->collisionBox.z = heli->size;
+	heli->collisionBox.x = (heli->size * heli->scaleFactor) / 2.0;
+	heli->collisionBox.y = (heli->size * heli->scaleFactor) * 0.3;
+	heli->collisionBox.z = (heli->size * heli->scaleFactor);
 
 	heli->yaw = 0;
 	heli->rotorRotation = 0.0;
@@ -33,7 +33,7 @@ void initHelicopter(Helicopter* heli)
 	heli->strafeVelocity = 0.0;
 	heli->liftVelocity = 0.0;
 
-	heli->maxSpeed = heli->size * 50.0;
+	heli->maxSpeed = heli->size * heli->scaleFactor * 50.0;
 
 	heli->texture = loadTexture("heli_texture.bmp");
 }
@@ -139,6 +139,8 @@ void drawBody(Helicopter* heli)
 	glRotated(270.0, 1.0, 0.0, 0.0);
 
 	glRotated(90.0, 0.0, 0.0, 1.0);
+	glRotated(10.0, 1.0, 0.0, 0.0);
+
 
 	glScaled(1.0, 0.5, 0.5);
 	gluSphere(heli->quadric, heli->size, 32, 32);
@@ -147,7 +149,7 @@ void drawBody(Helicopter* heli)
 
 void drawHelicopter(Helicopter* heli)
 {
-	renderFillEnabled ? gluQuadricDrawStyle(heli->quadric, GLU_FILL) : gluQuadricDrawStyle(heli->quadric, GLU_LINE);
+	//renderFillEnabled ? gluQuadricDrawStyle(heli->quadric, GLU_FILL) : gluQuadricDrawStyle(heli->quadric, GLU_LINE);
 
 	glPushMatrix();
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, heli->mat.ambient);

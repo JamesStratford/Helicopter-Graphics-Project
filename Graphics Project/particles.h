@@ -1,7 +1,7 @@
 #pragma once
 #include "includes.h"
 #include "texture-mapping.h"
-#include "terrain.h"
+#include "world.h"
 
 #define MAX_PARTICLES	1000
 
@@ -12,6 +12,7 @@ typedef struct
 	GLfloat size;
 	GLfloat scaleFactor;
 	Pos3 coordinates;
+	Pos3 collision;
 	GLfloat life;
 	GLfloat velocity;
 	GLfloat alpha;
@@ -30,6 +31,6 @@ typedef struct
 
 void initParticleSystem(ParticleSystem* pSystem);
 
-void createParticleInRandomRadius(ParticleSystem* pSystem, Terrain terrain[][TERRAIN_GRID_LEGNTH], Pos3* coordinates, GLfloat radius);
+void createParticleInRandomRadius(ParticleSystem* pSystem, Terrain* ter, Pos3* coordinates, GLfloat radius);
 void drawParticles(ParticleSystem* pSystem);
-void thinkParticles(ParticleSystem* pSystem, Terrain terrain[][TERRAIN_GRID_LEGNTH]);
+void thinkParticles(ParticleSystem* pSystem, Terrain* ter);
