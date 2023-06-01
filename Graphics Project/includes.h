@@ -8,7 +8,7 @@
 #define PI					3.14159265359
 #define TERRAIN_GRID_SIZE	100
 #define TERRAIN_GRID_LEGNTH 20
-#define SCALE				2.0f
+#define SCALE				5.0f
 
 #define CLAMP(x, lower, upper) (min(upper, max(x, lower)))
 
@@ -41,3 +41,4 @@ inline GLuint acquireNewDisplayListNum()
 	extern GLuint g_displayListIndex;
 	return ++g_displayListIndex;
 }
+

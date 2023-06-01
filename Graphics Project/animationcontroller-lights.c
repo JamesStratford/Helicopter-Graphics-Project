@@ -182,8 +182,11 @@ int fogEnabled = 1;
 GLuint g_displayListIndex = 0;
 
 Helicopter heli;
-meshObject* zebra_obj;
-meshObject* tree_obj;
+WorldObject zebra;
+WorldObject tree_1;
+WorldObject tree_2;
+WorldObject tree_3;
+
 Terrain terrain[TERRAIN_GRID_LEGNTH][TERRAIN_GRID_LEGNTH];
 Terrain objTerrain;
 Skybox skybox;
@@ -264,6 +267,9 @@ void display(void)
 	setCamera();
 	renderFillEnabled ? glPolygonMode(GL_FRONT_AND_BACK, GL_FILL) : glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	fogEnabled ? glEnable(GL_FOG) : glDisable(GL_FOG);
+
+	WorldObject* objs[] = { &zebra, &tree_1, &tree_2, &tree_3 };
+	drawOasisScene(objs, 4);
 
 	glUseProgram(programObjectID);
 	drawHelicopter(&heli);
@@ -602,13 +608,35 @@ void init(void)
 	initHelicopter(&heli);
 
 	initParticleSystem(&pSystem);
-	//zebra_obj = loadMeshObject("zebra.obj", "zebra.mtl");
-	//tree_obj = loadMeshObject("Palm_Tree.obj", "Palm_Tree.mtl");
-	//terrain = loadMeshObject("untitled.obj", "untitled.mtl");
-	//initTerrain(&terrain);
-	//tree_obj = loadMeshObject("Palm_Tree.obj", NULL);
 
-	initTerrain(&objTerrain, TERRAIN_GRID_SIZE * SCALE * TERRAIN_GRID_LEGNTH / 2, TERRAIN_GRID_SIZE * SCALE * TERRAIN_GRID_LEGNTH / 2);
+	initObjTerrain(&objTerrain, TERRAIN_GRID_SIZE * SCALE * TERRAIN_GRID_LEGNTH / 2, TERRAIN_GRID_SIZE * SCALE * TERRAIN_GRID_LEGNTH / 2);
+
+	Pos3 zebraPos;
+	Pos3 tree_1Pos;
+	Pos3 tree_2Pos;
+	Pos3 tree_3Pos;
+
+	zebraPos.z = 1800 * SCALE;
+	zebraPos.y = 25 * SCALE;
+	zebraPos.x = 1000 * SCALE;
+
+	tree_1Pos.z = 1850 * SCALE;
+	tree_1Pos.y = 0 * SCALE;
+	tree_1Pos.x = 1100 * SCALE;
+
+	tree_2Pos.z = 1750 * SCALE;
+	tree_2Pos.y = 0 * SCALE;
+	tree_2Pos.x = 900 * SCALE;
+
+	tree_3Pos.z = 1750 * SCALE;
+	tree_3Pos.y = 0 * SCALE;
+	tree_3Pos.x = 1100 * SCALE;
+
+	initWorldObject(&zebra, zebraPos, 5, 180, "zebra.obj", "zebra.mtl", "zebra_body.bmp");
+	initWorldObject(&tree_1, tree_1Pos, 20, 45, "Palm_Tree.obj", "Palm_Tree.mtl", "");
+	initWorldObject(&tree_2, tree_2Pos, 15, 15, "Palm_Tree.obj", "Palm_Tree.mtl", "");
+	initWorldObject(&tree_3, tree_3Pos, 25, -25, "Palm_Tree.obj", "Palm_Tree.mtl", "");
+
 
 	GLdouble terrainSize = TERRAIN_GRID_SIZE * SCALE;
 
@@ -661,12 +689,12 @@ void think(void)
 void initLights(void)
 {
 	// Define the light color and intensity
-	GLfloat ambientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f };
-	GLfloat diffuseLight[] = { 0.8f, 0.8f, 0.2f, 1.0f };    // Orange-ish diffuse light
-	GLfloat specularLight[] = { 1.0f, 0.5f, 0.2f, 1.0f };   // White specular light
+	GLfloat ambientLight[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+	GLfloat diffuseLight[] = { 0.8f, 0.8f, 0.8f, 1.0f }; 
+	GLfloat specularLight[] = { 0.8f, 0.8f, 0.8f, 1.0f };
 
 	// Set the global ambient light level
-	GLfloat globalAmbientLight[] = { 0.1f, 0.1f, 0.1f, 1.0f }; // Dimmed ambient light
+	GLfloat globalAmbientLight[] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Dimmed ambient light
 
 
 	// set the global ambient light level
@@ -834,9 +862,9 @@ void thinkHelicopterCollision(int* collidedWithTerrain, int* collidedWithSkybox)
 
 		// Degrade angles and speed quickly
 		heli.pitch *= (1.0 - 0.1);
-		heli.velocity *= (1.0 - 1);
+		heli.velocity *= (1.0 - 0.5);
 		heli.roll *= (1.0 - 0.1);
-		heli.strafeVelocity *= (1.0 - 1);
+		heli.strafeVelocity *= (1.0 - 0.5);
 	}
 }
 
@@ -922,7 +950,16 @@ void thinkHelicopter()
 
 	heli.coordinates.y += (float)heli.liftVelocity;
 
-	//heli.coordinates.x = CLAMP(heli.coordinates.x, 100, 0);
+	if (collidedWithSkybox)
+	{
+		Pos3 worldCenter;
+		worldCenter.x = 2000;
+		worldCenter.y = 50.0;
+		worldCenter.z = 2000;
+
+		heli.coordinates = worldCenter;
+	}
+
 
 	heli.rotorRotation += heli.rotorVelocity;
 	if (heli.rotorRotation > 360.0) heli.rotorRotation = 0.0;

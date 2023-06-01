@@ -162,6 +162,7 @@ void drawHelicopter(Helicopter* heli)
 	gluQuadricTexture(heli->quadric, TRUE);
 
 	glTranslated(heli->coordinates.x, heli->coordinates.y, heli->coordinates.z);
+	glScaled(heli->scaleFactor, heli->scaleFactor, heli->scaleFactor);
 
 	// Yaw
 	glRotated(-heli->yaw, 0.0, 1.0, 0.0);

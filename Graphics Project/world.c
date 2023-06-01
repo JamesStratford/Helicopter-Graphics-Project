@@ -1,19 +1,15 @@
 #include "world.h"
 #include <math.h>
 
-meshObject* terrainTestMesh = NULL;
 GLint desertTexture = 0;
 extern int renderFillEnabled;
 Pos3 g_CollisionCheckOutput;
 
 
-
-void initTerrain(Terrain* ter, GLfloat x, GLfloat z)
+void initObjTerrain(Terrain* ter, GLfloat x, GLfloat z)
 {
-	if (!terrainTestMesh)
-		terrainTestMesh = loadMeshObject("terrain_1.obj", "terrain_1.mtl");
-
-	ter->mesh = terrainTestMesh;
+	if (!ter->mesh)
+		ter->mesh = loadMeshObject("terrain_1.obj", "terrain_1.mtl");
 
 	ter->baseSize = 2;
 	ter->scaleFactor = TERRAIN_GRID_SIZE * 10 * SCALE; // Blender obj file is 2x2 units
@@ -83,6 +79,35 @@ void initMoon(Moon* moon)
 	moon->mat.shininess = 100.0f;
 }
 
+void initWorldObject(WorldObject* obj, Pos3 position, GLfloat size, GLfloat yRotation, const char* meshFilePath, const char* mtlFilePath, const char* textureFilePath)
+{
+	if (!obj->mesh)
+		obj->mesh = loadMeshObject(meshFilePath, mtlFilePath);
+
+	obj->baseSize = size;
+	obj->yRotation = yRotation;
+	obj->scaleFactor = SCALE;
+
+	obj->position = position;
+
+	obj->texture = loadTexture(textureFilePath);
+}
+
+void drawWorldObject(WorldObject* obj)
+{
+	glPushMatrix();
+	glTranslated(obj->position.x, obj->position.y, obj->position.z);
+	glRotatef(obj->yRotation, 0.0f, 1.0f, 0.0f);
+	glScaled(obj->baseSize, obj->baseSize, obj->baseSize);
+	glScaled(obj->scaleFactor, obj->scaleFactor, obj->scaleFactor);
+
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, obj->texture);
+	renderMeshObject(obj->mesh);
+	glDisable(GL_TEXTURE_2D);
+	glPopMatrix();
+}
+
 void drawMoon(Moon* moon)
 {
 	glPushMatrix();
@@ -130,7 +155,7 @@ void drawSkybox(Skybox* skybox)
 
 	glPopMatrix();
 }
-extern GLuint programObjectID;
+
 void renderGround(Terrain* ter)
 {
 	glPushMatrix();
@@ -163,9 +188,17 @@ void renderGridGround(Terrain* ter)
 	glPopMatrix();
 }
 
+void drawOasisScene(WorldObject** objs, int lenObjs)
+{
+	for (int i = 0; i < lenObjs; i++)
+	{
+		drawWorldObject(objs[i]);
+	}
+}
+
 int checkCollisionSkybox(Skybox* skybox, Pos3* object)
 {
-	double collisionRadius = skybox->size * skybox->scaleFactor - skybox->size * skybox->scaleFactor * 0.2; // small buffer before edge
+	double collisionRadius = skybox->size * skybox->scaleFactor - skybox->size * skybox->scaleFactor * 0.05; // small buffer before edge
 	double distance = sqrt(
 		pow(object->x - skybox->coordinates.x, 2) +
 		pow(object->z - skybox->coordinates.y, 2)
@@ -218,5 +251,5 @@ Pos3* getCollisionTerrain(Terrain* ter, Pos3* object, Pos3* collision)
 
 void freeTerrain()
 {
-	freeMeshObject(terrainTestMesh);
+	//freeMeshObject(terrainTestMesh);
 }
