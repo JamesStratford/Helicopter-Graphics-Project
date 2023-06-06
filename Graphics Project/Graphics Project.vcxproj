@@ -22,6 +22,7 @@
     <ClCompile Include="animationcontroller-lights.c" />
     <ClCompile Include="helicopter.c" />
     <ClCompile Include="particles.c" />
+    <ClCompile Include="shader-loader.c" />
     <ClCompile Include="textfile.c" />
     <ClCompile Include="world.c" />
     <ClCompile Include="obj-loader.c" />
@@ -31,6 +32,7 @@
     <ClInclude Include="helicopter.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="particles.h" />
+    <ClInclude Include="shader-loader.h" />
     <ClInclude Include="textfile.h" />
     <ClInclude Include="world.h" />
     <ClInclude Include="obj-loader.h" />

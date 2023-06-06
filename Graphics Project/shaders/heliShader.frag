@@ -26,11 +26,11 @@ void main (void)
 
   
    // some toon colors
-   const vec4 orange = vec4(0.7, 0.7, 0.7, 1.0);
-   const vec4 black  = vec4(0.3, 0.3, 0.3, 1.0);
+   const vec4 light = vec4(0.9, 0.7, 0.5, 1.0);
+   const vec4 dark  = vec4(0.5, 0.4, 0.3, 1.0);
 
    // storage for the base toon color
-   vec4 toonColor; 
+   vec4 colour; 
 
    // compute the amount of diffuse reflection
    vec3  eyeNormalVec = normalize(gl_NormalMatrix * N);
@@ -39,12 +39,12 @@ void main (void)
 	 
    // if the diffuse brightness is above a low level, then it is orange
    if (diffuseAmount > 0.1) 
-		toonColor = orange;
+		colour = light;
    else // otherwise it is red
-		toonColor = black;
+		colour = dark;
 
    // write Total Color to the fragment color based on the base toon color
    //  but also with some amount of specular and ambient 
-   gl_FragColor = Iambient + toonColor + 0.6f * Ispecular; 
+   gl_FragColor = Iambient + colour + 0.2f * Ispecular; 
 }
  

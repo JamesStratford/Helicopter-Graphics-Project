@@ -1,27 +1,24 @@
 #include "helicopter.h"
+#include "shader-loader.h"
 
 extern int renderFillEnabled;
 
+void drawSpotlightCone(Helicopter* heli);
+
 void initHelicopter(Helicopter* heli)
 {
-	GLfloat ambient[] = { 1.0, 1.0, 1.0, 1.0 };
-	GLfloat diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
-	GLfloat specular[] = { 1.0, 1.0, 1.0, 1.0 };
-
-	memcpy_s(heli->mat.ambient, sizeof(float[4]), ambient, sizeof(float[4]));
-	memcpy_s(heli->mat.diffuse, sizeof(float[4]), diffuse, sizeof(float[4]));
-	memcpy_s(heli->mat.specular, sizeof(float[4]), specular, sizeof(float[4]));
-	heli->mat.shininess = 100.0f;
 	heli->quadric = gluNewQuadric();
 	heli->size = 10.0;
 	heli->scaleFactor = SCALE;
+
+	heli->shaderProgramID = setShaders("shaders/heliShader.vert", "shaders/heliShader.frag");
 
 	heli->coordinates.x = (TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2) * heli->scaleFactor;
 	heli->coordinates.z = (TERRAIN_GRID_SIZE * TERRAIN_GRID_LEGNTH / 2) * heli->scaleFactor;
 	heli->coordinates.y = 25 * heli->scaleFactor;
 
 	heli->collisionBox.x = (heli->size * heli->scaleFactor) / 2.0;
-	heli->collisionBox.y = (heli->size * heli->scaleFactor) * 0.3;
+	heli->collisionBox.y = (heli->size * heli->scaleFactor) * 1.3;
 	heli->collisionBox.z = (heli->size * heli->scaleFactor);
 
 	heli->yaw = 0;
@@ -35,7 +32,7 @@ void initHelicopter(Helicopter* heli)
 
 	heli->maxSpeed = heli->size * heli->scaleFactor * 50.0;
 
-	heli->texture = loadTexture("heli_texture.bmp");
+	heli->spotlightOn = 1;
 }
 
 void drawTopRotor(Helicopter* heli)
@@ -139,8 +136,6 @@ void drawBody(Helicopter* heli)
 	glRotated(270.0, 1.0, 0.0, 0.0);
 
 	glRotated(90.0, 0.0, 0.0, 1.0);
-	glRotated(10.0, 1.0, 0.0, 0.0);
-
 
 	glScaled(1.0, 0.5, 0.5);
 	gluSphere(heli->quadric, heli->size, 32, 32);
@@ -149,17 +144,7 @@ void drawBody(Helicopter* heli)
 
 void drawHelicopter(Helicopter* heli)
 {
-	//renderFillEnabled ? gluQuadricDrawStyle(heli->quadric, GLU_FILL) : gluQuadricDrawStyle(heli->quadric, GLU_LINE);
-
 	glPushMatrix();
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, heli->mat.ambient);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, heli->mat.diffuse);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, heli->mat.specular);
-	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, heli->mat.shininess);
-
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, heli->texture);
-	gluQuadricTexture(heli->quadric, TRUE);
 
 	glTranslated(heli->coordinates.x, heli->coordinates.y, heli->coordinates.z);
 	glScaled(heli->scaleFactor, heli->scaleFactor, heli->scaleFactor);
@@ -173,14 +158,38 @@ void drawHelicopter(Helicopter* heli)
 	// Roll
 	glRotated(heli->roll, 0.0, 0.0, 1.0);
 
+	glUseProgram(heli->shaderProgramID);
 	drawBody(heli);
 	drawFeet(heli);
 	drawTopRotor(heli);
 	drawTailRotor(heli);
+	glUseProgram(0);
 
-	glDisable(GL_TEXTURE_2D);
-
+	if (heli->spotlightOn)
+		drawSpotlightCone(heli);
 
 	glPopMatrix();
 }
 
+void drawSpotlightCone(Helicopter* heli)
+{
+	glPushMatrix();
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	GLfloat ambient[] = { 0.8, 0.8, 0.0, 0.5 };
+	GLfloat diffuse[] = { 0.8, 0.8, 0.0, 0.5 };
+	GLfloat specular[] = { 1.0, 1.0, 1.0, 0.5 };
+	GLfloat shininess = 100.0f;
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, ambient);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, diffuse);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, specular);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess);
+
+	glTranslated(0, -0.5 * heli->scaleFactor, 2 * heli->scaleFactor);
+	glRotated(45, 1, 0, 0);
+
+	gluCylinder(heli->quadric, 0, 500 * SCALE, TERRAIN_HEIGHT_WIDTH, 64, 64);
+	glDisable(GL_BLEND);
+	glPopMatrix();
+}

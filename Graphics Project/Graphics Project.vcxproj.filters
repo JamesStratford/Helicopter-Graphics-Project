@@ -39,6 +39,9 @@
     <ClCompile Include="textfile.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="shader-loader.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helicopter.h">
@@ -60,6 +63,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="textfile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shader-loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

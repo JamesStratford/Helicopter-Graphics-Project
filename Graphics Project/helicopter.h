@@ -6,6 +6,7 @@ typedef struct
 {
 	meshObject* mesh;
 	Material mat;
+	GLuint shaderProgramID;
 	GLUquadric* quadric;
 	GLdouble size;
 	GLfloat scaleFactor;
@@ -22,6 +23,8 @@ typedef struct
 	GLdouble liftVelocity;
 	GLdouble maxSpeed;
 	GLuint texture;
+
+	GLuint spotlightOn;
 } Helicopter;
 
 

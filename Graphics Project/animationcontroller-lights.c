@@ -19,8 +19,7 @@
 #include "obj-loader.h"
 #include "world.h"
 #include "particles.h"
-#include "textfile.h"
-#include "glew.h"
+
 
 
  /******************************************************************************
@@ -114,6 +113,8 @@ motionstate4_t keyboardMotion = { MOTION_NONE, MOTION_NONE, MOTION_NONE, MOTION_
 #define KEY_RENDER_FILL		'l'
 #define KEY_OBJTERRAIN		'o'
 #define KEY_TOGGLE_FOG		'f'
+#define KEY_SPOTLIGHT		' '
+#define KEY_GLOBAL_LIGHTS	'`'
 
 #define KEY_EXIT			27 // Escape key.
 
@@ -151,10 +152,7 @@ void basicGround(void);
 void setCamera();
 
 void thinkHelicopter();
-
-void printShaderInfoLog(GLuint obj);
-void printProgramInfoLog(GLuint obj);
-void setShaders(void);
+void switchLights(int on);
 
 /******************************************************************************
  * Animation-Specific Setup (Add your own definitions, constants, and globals here)
@@ -178,6 +176,8 @@ int renderFillEnabled = 1;
 
 int objTerrainEnabled = 1;
 int fogEnabled = 1;
+int spotlightOn = 0;
+int globalLightsOn = 0;
 
 GLuint g_displayListIndex = 0;
 
@@ -193,10 +193,6 @@ Skybox skybox;
 Moon moon;
 ParticleSystem pSystem;
 
-GLuint vertexShaderID;
-GLuint fragmentShaderID;
-GLuint programObjectID;
-
 /******************************************************************************
  * Entry Point (don't put anything except the main function here)
  ******************************************************************************/
@@ -208,6 +204,16 @@ void main(int argc, char** argv)
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(windowWidth, windowHeight);
 	glutCreateWindow("Animation");
+
+	glewInit();
+	if (glewIsSupported("GL_VERSION_3_0"))
+		printf("Ready for OpenGL 3.0\n");
+	else
+	{
+		printf("OpenGL 3.0 not supported\n");
+		exit(1);
+	}
+
 	glEnable(GL_DEPTH_TEST);
 
 	// Set up the scene.
@@ -229,17 +235,6 @@ void main(int argc, char** argv)
 
 	// Record when we started rendering the very first frame (which should happen after we call glutMainLoop).
 	frameStartTime = (unsigned int)glutGet(GLUT_ELAPSED_TIME);
-	
-	glewInit();
-	if (glewIsSupported("GL_VERSION_3_0"))
-		printf("Ready for OpenGL 3.0\n");
-	else
-	{
-		printf("OpenGL 3.0 not supported\n");
-		exit(1);
-	}
-
-	setShaders();
 
 	// Enter the main drawing loop (this will never return).
 	glutMainLoop();
@@ -271,11 +266,6 @@ void display(void)
 	WorldObject* objs[] = { &zebra, &tree_1, &tree_2, &tree_3 };
 	drawOasisScene(objs, 4);
 
-	glUseProgram(programObjectID);
-	drawHelicopter(&heli);
-	glUseProgram(0);
-	
-
 	for (unsigned int i = 1; i <= g_displayListIndex; i++)
 	{
 		if (!objTerrainEnabled)
@@ -299,7 +289,9 @@ void display(void)
 
 	drawMoon(&moon);
 	drawSkybox(&skybox);
+
 	drawParticles(&pSystem);
+	drawHelicopter(&heli);
 
 	glutSwapBuffers();
 }
@@ -316,7 +308,7 @@ void reshape(int width, int h)
 	glLoadIdentity();
 	GLdouble aspect = (double)windowWidth / (double)windowHeight;
 
-	glOrtho(-orthoLevel * aspect, orthoLevel * aspect, -orthoLevel, orthoLevel, -orthoLevel * 10.0, 2000.0 * SCALE);
+	glOrtho(-orthoLevel * aspect * SCALE, orthoLevel * aspect * SCALE, -orthoLevel * SCALE, orthoLevel * SCALE, -orthoLevel * 10.0 * SCALE, 2000.0 * SCALE);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
@@ -373,6 +365,13 @@ void keyPressed(unsigned char key, int x, int y)
 		break;
 	case KEY_TOGGLE_FOG:
 		fogEnabled = !fogEnabled;
+		break;
+	case KEY_SPOTLIGHT:
+		spotlightOn = !spotlightOn;
+		break;
+	case KEY_GLOBAL_LIGHTS:
+		globalLightsOn = !globalLightsOn;
+		switchLights(globalLightsOn);
 		break;
 	case KEY_EXIT:
 		exit(0);
@@ -517,13 +516,6 @@ void specialKeyReleased(int key, int x, int y)
 */
 void idle(void)
 {
-	// Get uniform locations
-	GLint lightPosLoc = glGetUniformLocation(programObjectID, "lightPos");
-
-	// Set uniform values
-	GLfloat lightPos[] = {moon.coordinates.x, moon.coordinates.y, moon.coordinates.z};
-	glUniform3fv(lightPosLoc, 1, lightPos);
-
 	// Wait until it's time to render the next frame.
 
 	unsigned int frameTimeElapsed = (unsigned int)glutGet(GLUT_ELAPSED_TIME) - frameStartTime;
@@ -554,12 +546,12 @@ void mouse(int button, int state, int x, int y)
 		if (button == 3 && state == GLUT_UP)
 			if (orthoLevel > 10.0) orthoLevel -= 10.0;
 		if (button == 4 && state == GLUT_UP)
-			if (orthoLevel < 1000.0) orthoLevel += 10.0;
+			if (orthoLevel < 100.0) orthoLevel += 10.0;
 
 		glViewport(0, 0, windowWidth, windowHeight);
 		glMatrixMode(GL_PROJECTION);
 		glLoadIdentity();
-		glOrtho(-orthoLevel * aspect, orthoLevel * aspect, -orthoLevel, orthoLevel, -orthoLevel * 10.0, 2000.0 * SCALE);
+		glOrtho(-orthoLevel * aspect * SCALE, orthoLevel * aspect * SCALE, -orthoLevel * SCALE, orthoLevel * SCALE, -orthoLevel * 10.0 * SCALE, 2000.0 * SCALE);
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
 	}
@@ -588,18 +580,15 @@ void mouse(int button, int state, int x, int y)
 
 void init(void)
 {
-	// Setting random seed
-	srand(time(NULL));
-
-	glClearColor(0.0, 0.0, 0.0, 1.0); // Set the background color to black
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set the background color to black
 	glMatrixMode(GL_PROJECTION); // Select the projection matrix
 	glLoadIdentity(); // Load the identity matrix
 	
 	glEnable(GL_FOG);
-	GLfloat fogColor[4] = { 0.8, 0.4, 0.0, 1.0 }; // orange
+	GLfloat fogColor[4] = { 0.2f, 0.1f, 0.1f, 1.0f }; // orange
 	glFogi(GL_FOG_MODE, GL_EXP);
 	glFogfv(GL_FOG_COLOR, fogColor);
-	glFogf(GL_FOG_DENSITY, 0.002 / SCALE);
+	glFogf(GL_FOG_DENSITY, 0.002f / SCALE);
 
 	glMatrixMode(GL_MODELVIEW); // Select the model view matrix
 	glLoadIdentity(); // Load the identity matrix
@@ -640,18 +629,18 @@ void init(void)
 
 	GLdouble terrainSize = TERRAIN_GRID_SIZE * SCALE;
 
-	int x = terrainSize / 2.0;
-	int z = terrainSize / 2.0;
+	int x = (int)(terrainSize / 2.0);
+	int z = (int)(terrainSize / 2.0);
 
 	for (int i = 0; i < TERRAIN_GRID_LEGNTH; i++)
 	{
 		for (int k = 0; k < TERRAIN_GRID_LEGNTH; k++)
 		{
-			initGridTerrain(&terrain[i][k], x, z);
-			z += terrainSize;
+			initGridTerrain(&terrain[i][k], (float)x, (float)z);
+			z += (int)terrainSize;
 		}
-		z = terrainSize / 2.0;
-		x += terrainSize;
+		z = (int)(terrainSize / 2.0);
+		x += (int)terrainSize;
 	}
 
 
@@ -674,7 +663,7 @@ void think(void)
 	//int i = (heli.coordinates.x) / terrain[0][0].postSize;
 	//int k = (heli.coordinates.z) / terrain[0][0].postSize;
 	//Terrain* terrain_t = &terrain[i][k];
-	createParticleInRandomRadius(&pSystem, &objTerrain, &heli.coordinates, heli.size * 200);
+	createParticleInRandomRadius(&pSystem, &objTerrain, &heli.coordinates, (GLfloat)(heli.size * 200.0f));
 	thinkParticles(&pSystem, &objTerrain);
 
 }
@@ -705,12 +694,32 @@ void initLights(void)
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
 	// enable lighting
 	glEnable(GL_LIGHTING);
+	GLfloat direction[] = { 0.0f, -1.0f, 0.0f };
+
+	glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, direction);
+
+	GLfloat spot_cutoff = 90;
+	GLfloat spot_exponent = 2;
+
+	glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, spot_cutoff);
+	glLightf(GL_LIGHT0, GL_SPOT_EXPONENT, spot_exponent);
+
+	// set light position
+	GLfloat lightPosition[] = { (float)moon.coordinates.x, (float)moon.coordinates.y, (float)moon.coordinates.z, 1.0f };
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+
 	// enable light 0
 	glEnable(GL_LIGHT0);
 
-	// set light position
-	GLfloat lightPosition[] = { moon.coordinates.x, moon.coordinates.y, moon.coordinates.z, 1.0f };
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
+
+	// Light 1
+	GLfloat ambientLight1[] = { 0.8f, 0.5f, 0.0f, 1.0f };
+	GLfloat diffuseLight1[] = { 0.8f, 0.5f, 0.0f, 1.0f };
+	GLfloat specularLight1[] = { 0.8f, 0.8f, 0.8f, 1.0f };
+
+	glLightfv(GL_LIGHT1, GL_AMBIENT, ambientLight1);
+	glLightfv(GL_LIGHT1, GL_SPECULAR, specularLight1);
+	glLightfv(GL_LIGHT1, GL_DIFFUSE, diffuseLight1);
 
 	// turn on depth testing so that polygons are drawn in the correct order
 	glEnable(GL_DEPTH_TEST);
@@ -734,12 +743,12 @@ void diagnostics()
 	sprintf_s(heliZ, 200, "z : %.2f", heli.coordinates.z);
 	GLdouble aspect = (double)windowWidth / (double)windowHeight;
 
-	glTranslated(-orthoLevel * aspect, orthoLevel, 0);
-	glRasterPos2d(orthoLevel / 20.0, -orthoLevel / 20.0);
+	glTranslated(-orthoLevel * aspect * SCALE, orthoLevel * SCALE, 0);
+	glRasterPos2d(orthoLevel / 20.0 * SCALE, -orthoLevel / 20.0 * SCALE);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliX);
-	glRasterPos2d(orthoLevel / 20.0, -orthoLevel / 20.0 * 2.0);
+	glRasterPos2d(orthoLevel / 20.0 * SCALE, -orthoLevel / 20.0 * 2.0 * SCALE);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliY);
-	glRasterPos2d(orthoLevel / 20.0, -orthoLevel / 20.0 * 3.0);
+	glRasterPos2d(orthoLevel / 20.0 * SCALE, -orthoLevel / 20.0 * 3.0 * SCALE);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliZ);
 
 	if (checkCollisionSkybox(&skybox, &heli.coordinates))
@@ -787,19 +796,19 @@ void setCamera()
 		// Free cam slowdown
 		if (cursorPos.x > freeCamMouseXStart)
 		{
-			freeCamMouseXStart += (int)fabsf(cursorPos.x - freeCamMouseXStart) * 0.02f;
+			freeCamMouseXStart += (int)(fabsf((float)(cursorPos.x - freeCamMouseXStart)) * 0.02f);
 		}
 		else
 		{
-			freeCamMouseXStart -= (int)fabsf(cursorPos.x - freeCamMouseXStart) * 0.02f;
+			freeCamMouseXStart -= (int)(fabsf((float)(cursorPos.x - freeCamMouseXStart)) * 0.02f);
 		}
 		if (cursorPos.y > freeCamMouseYStart)
 		{
-			freeCamMouseYStart += (int)fabsf(cursorPos.y - freeCamMouseYStart) * 0.02f;
+			freeCamMouseYStart += (int)(fabsf((float)(cursorPos.y - freeCamMouseYStart)) * 0.02f);
 		}
 		else
 		{
-			freeCamMouseYStart -= (int)fabsf(cursorPos.y - freeCamMouseYStart) * 0.02f;
+			freeCamMouseYStart -= (int)(fabsf((float)(cursorPos.y - freeCamMouseYStart)) * 0.02f);
 		}
 	}
 
@@ -868,8 +877,76 @@ void thinkHelicopterCollision(int* collidedWithTerrain, int* collidedWithSkybox)
 	}
 }
 
+void thinkSpotlight()
+{
+	if (!heli.spotlightOn)
+	{
+		glDisable(GL_LIGHT1);
+		return;
+	}
+	float pitch = (float)(heli.pitch * PI) / 180.0f;
+	float yaw = -(float)(heli.yaw * PI) / 180.0f;
+	float roll = (float)(heli.roll * PI) / 180.0f;
+
+	// Calculate the direction.
+	GLfloat direction[] = { 0.0f, 0.0f, 1.0f };
+
+	// Adjust for 45 degrees downward angle
+	float downAngle = (45.0f * (float)PI) / 180.0f;
+
+	// Apply rotation around x (for down angle)
+	GLfloat temp_y = direction[1] * cosf(downAngle) - direction[2] * sinf(downAngle);
+	GLfloat temp_z = direction[1] * sinf(downAngle) + direction[2] * cosf(downAngle);
+	direction[1] = temp_y;
+	direction[2] = temp_z;
+
+	// Apply roll (rotation around z)
+	GLfloat temp_x = direction[0] * cosf(roll) - direction[1] * sinf(roll);
+	temp_y = direction[0] * sinf(roll) + direction[1] * cosf(roll);
+	direction[0] = temp_x;
+	direction[1] = temp_y;
+
+	// Apply pitch (rotation around x)
+	temp_y = direction[1] * cosf(pitch) - direction[2] * sinf(pitch);
+	temp_z = direction[1] * sinf(pitch) + direction[2] * cosf(pitch);
+	direction[1] = temp_y;
+	direction[2] = temp_z;
+
+	// Apply yaw (rotation around y)
+	temp_x = direction[0] * cosf(yaw) + direction[2] * sinf(yaw);
+	temp_z = -direction[0] * sinf(yaw) + direction[2] * cosf(yaw);
+	direction[0] = temp_x;
+	direction[2] = temp_z;
+
+	glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, direction);
+
+	GLfloat spot_cutoff = 15.f;  // The cutoff angle in degrees
+	GLfloat spot_exponent = 2.0f;  // The spotlight exponent
+
+	glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, spot_cutoff);
+	glLightf(GL_LIGHT1, GL_SPOT_EXPONENT, spot_exponent);
+
+	// set light position
+	GLfloat lightPosition[] = { (float)heli.coordinates.x, (float)heli.coordinates.y, (float)heli.coordinates.z, 1.0f };
+	glLightfv(GL_LIGHT1, GL_POSITION, lightPosition);
+
+	// enable light 1
+	glEnable(GL_LIGHT1);
+}
+
 void thinkHelicopter()
 {
+	// Get uniform locations
+	GLint lightPosLoc = glGetUniformLocation(heli.shaderProgramID, "lightPos");
+
+	// Set uniform values
+	GLfloat lightPos[] = { (float)moon.coordinates.x, (float)moon.coordinates.y, (float)moon.coordinates.z };
+	glUniform3fv(lightPosLoc, 1, lightPos);
+
+	heli.spotlightOn = spotlightOn;
+
+	thinkSpotlight();
+
 	int collidedWithTerrain = 0;
 	int collidedWithSkybox = 0;
 
@@ -950,12 +1027,13 @@ void thinkHelicopter()
 
 	heli.coordinates.y += (float)heli.liftVelocity;
 
+	// Reset position
 	if (collidedWithSkybox)
 	{
 		Pos3 worldCenter;
-		worldCenter.x = 2000;
-		worldCenter.y = 50.0;
-		worldCenter.z = 2000;
+		worldCenter.x = TERRAIN_HEIGHT_WIDTH / 2;
+		worldCenter.y = 50.0 * SCALE;
+		worldCenter.z = TERRAIN_HEIGHT_WIDTH / 2;
 
 		heli.coordinates = worldCenter;
 	}
@@ -965,99 +1043,16 @@ void thinkHelicopter()
 	if (heli.rotorRotation > 360.0) heli.rotorRotation = 0.0;
 }
 
+void switchLights(int on)
+{
+	if (on)
+		glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 180);
+	else
+		glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 90);
+}
+
 void cleanUp()
 {
 	freeTerrain();
 }
 
-/*
-   Prints any errors from shader compilation
-*/
-void printShaderInfoLog(GLuint obj)
-{
-	int infologLength = 0;
-	int charsWritten = 0;
-	char* infoLog;
-
-	glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &infologLength);
-
-	if (infologLength > 0)
-	{
-		infoLog = (char*)malloc(infologLength);
-		glGetShaderInfoLog(obj, infologLength, &charsWritten, infoLog);
-		printf("%s\n", infoLog);
-		free(infoLog);
-	}
-}
-
-/*
-	Prints any errors from program linking
-*/
-void printProgramInfoLog(GLuint obj)
-{
-	int infologLength = 0;
-	int charsWritten = 0;
-	char* infoLog;
-
-	glGetProgramiv(obj, GL_INFO_LOG_LENGTH, &infologLength);
-
-	if (infologLength > 0)
-	{
-		infoLog = (char*)malloc(infologLength);
-		glGetProgramInfoLog(obj, infologLength, &charsWritten, infoLog);
-		printf("%s\n", infoLog);
-		free(infoLog);
-	}
-}
-
-/*
-	Reads in shaders compiles them and then attaches them to a newly created program object.
-	This program object is then linked to this application.
-*/
-void setShaders(void)
-{
-	char* vertexShaderSource = NULL;
-	char* fragmentShaderSource = NULL;
-
-	// create the openGL shaders
-	vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-
-	// read in the shader text from files
-	vertexShaderSource = textFileRead("shaders/heliShader.vert");
-	fragmentShaderSource = textFileRead("shaders/heliShader.frag");
-	//vertexShaderSource = textFileRead("DesertTerrain.vert");
-	//fragmentShaderSource = textFileRead("DesertTerrain.frag");
-
-	// pass in the shader strings
-	glShaderSource(vertexShaderID, 1, &vertexShaderSource, NULL);
-	glShaderSource(fragmentShaderID, 1, &fragmentShaderSource, NULL);
-
-	// release the files
-	free(vertexShaderSource);
-	free(fragmentShaderSource);
-
-	// compile the shaders
-	glCompileShader(vertexShaderID);
-	glCompileShader(fragmentShaderID);
-
-	// print out any errors from the shader compilations
-	printShaderInfoLog(vertexShaderID);
-	printShaderInfoLog(fragmentShaderID);
-
-	// create a program object to contain the shaders
-	programObjectID = glCreateProgram();
-
-	// attach the shaders to the program object
-	glAttachShader(programObjectID, vertexShaderID);
-	glAttachShader(programObjectID, fragmentShaderID);
-
-	// link the program object to this application
-	glLinkProgram(programObjectID);
-
-	// print any errors from the linking
-	printProgramInfoLog(programObjectID);
-
-	// use this program object (and the shaders attached to it)
-	//glUseProgram(programObjectID);
-}
