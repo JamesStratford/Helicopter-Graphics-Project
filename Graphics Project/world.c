@@ -79,25 +79,30 @@ void initMoon(Moon* moon)
 	moon->mat.shininess = 100.0f;
 }
 
-void initWorldObject(WorldObject* obj, Pos3 position, GLfloat size, GLfloat yRotation, const char* meshFilePath, const char* mtlFilePath, const char* textureFilePath)
+void initWorldObject(WorldObject* obj, Pos3 position, GLfloat size, GLfloat rotation[3], const char* meshFilePath, const char* mtlFilePath, const char* textureFilePath)
 {
-	if (!obj->mesh)
+	if (meshFilePath)
 		obj->mesh = loadMeshObject(meshFilePath, mtlFilePath);
 
+	obj->quadric = gluNewQuadric();
+
 	obj->baseSize = size;
-	obj->yRotation = yRotation;
+	memcpy_s(obj->rotation, 3 * sizeof(GLfloat), rotation, 3 * sizeof(GLfloat));
 	obj->scaleFactor = SCALE;
 
 	obj->position = position;
 
-	obj->texture = loadTexture(textureFilePath);
+	if (textureFilePath)
+		obj->texture = loadTexture(textureFilePath);
 }
 
 void drawWorldObject(WorldObject* obj)
 {
 	glPushMatrix();
 	glTranslated(obj->position.x, obj->position.y, obj->position.z);
-	glRotatef(obj->yRotation, 0.0f, 1.0f, 0.0f);
+	glRotated(obj->rotation[0], 1.0, 0.0, 0.0);
+	glRotated(obj->rotation[1], 0.0, 1.0, 0.0);
+	glRotated(obj->rotation[2], 0.0, 0.0, 1.0);
 	glScaled(obj->baseSize, obj->baseSize, obj->baseSize);
 	glScaled(obj->scaleFactor, obj->scaleFactor, obj->scaleFactor);
 
@@ -111,6 +116,7 @@ void drawWorldObject(WorldObject* obj)
 void drawMoon(Moon* moon)
 {
 	glPushMatrix();
+
 	glTranslated(moon->coordinates.x, moon->coordinates.y, moon->coordinates.z);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, moon->mat.ambient);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, moon->mat.diffuse);
@@ -212,7 +218,7 @@ Pos3* getCollisionTerrain(Terrain* ter, Pos3* object, Pos3* collision)
 {
 	if (!ter || !object)
 		return NULL;
-	// Check if the object's z coordinate (height) is less than or equal to the height of the terrain at its x and y coordinates
+	
 	double x = object->x;
 	double y = object->y;
 	double z = object->z;
@@ -249,7 +255,58 @@ Pos3* getCollisionTerrain(Terrain* ter, Pos3* object, Pos3* collision)
 	return NULL;
 }
 
-void freeTerrain()
+void drawHelipad(WorldObject* helipad)
 {
-	//freeMeshObject(terrainTestMesh);
+	glPushMatrix();
+	glTranslated(helipad->position.x, helipad->position.y, helipad->position.z);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, helipad->texture);
+	gluQuadricTexture(helipad->quadric, TRUE);
+	glRotated(helipad->rotation[0], 1.0, 0.0, 0.0);
+	glRotated(helipad->rotation[1], 0.0, 1.0, 0.0);
+	glRotated(helipad->rotation[2], 0.0, 0.0, 1.0);
+
+	gluDisk(helipad->quadric, 0.0, helipad->baseSize * helipad->scaleFactor, 180, 180);
+	gluCylinder(helipad->quadric, helipad->baseSize * helipad->scaleFactor * 0.75, helipad->baseSize * helipad->scaleFactor * 0.75, helipad->baseSize * helipad->scaleFactor, 8, 1);
+	glDisable(GL_TEXTURE_2D);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslated(helipad->position.x, helipad->position.y + 2.0, helipad->position.z);
+	glScaled(100 * helipad->scaleFactor, 100 * helipad->scaleFactor, 100 * helipad->scaleFactor);
+	renderMeshObject(helipad->mesh);
+	glPopMatrix();
+
+}
+
+int getCollisionHelipad(WorldObject* helipad, Pos3* object, Pos3* collision)
+{
+	if (!helipad || !object)
+		return 0;
+	// Check if the object's z coordinate (height) is less than or equal to the height of the terrain at its x and y coordinates
+	double x = object->x;
+	double y = object->y;
+	double z = object->z;
+	double xDelta = 0.0;
+	double yDelta = 0.0;
+	double zDelta = 0.0;
+
+	if (collision)
+	{
+		xDelta = collision->x / 2.0;
+		yDelta = collision->y / 2.0;
+		zDelta = collision->z / 2.0;
+	}
+
+	GLfloat radius = helipad->baseSize * helipad->scaleFactor;
+	Pos3 helipadPos = helipad->position;
+
+	double distance = sqrt(pow(helipadPos.x - x, 2) + pow(helipadPos.y - y, 2));
+	if (distance <= radius)
+	{
+		if (object->y - yDelta <= helipadPos.y)
+			return 1;
+	}
+
+	return 0;
 }

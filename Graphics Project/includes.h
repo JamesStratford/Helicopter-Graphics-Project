@@ -8,7 +8,7 @@
 #define PI						3.14159265359
 #define TERRAIN_GRID_SIZE		100
 #define TERRAIN_GRID_LEGNTH		20
-#define SCALE					3.0f
+#define SCALE					1.0f
 #define TERRAIN_HEIGHT_WIDTH	TERRAIN_GRID_LEGNTH * TERRAIN_GRID_SIZE * SCALE
 
 #define CLAMP(x, lower, upper) (min(upper, max(x, lower)))

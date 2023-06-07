@@ -30,3 +30,4 @@ typedef struct
 
 void initHelicopter(Helicopter* heli);
 void drawHelicopter(Helicopter* heli);
+void drawSpotlightCone(Helicopter* heli);

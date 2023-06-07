@@ -189,7 +189,12 @@ void drawSpotlightCone(Helicopter* heli)
 	glTranslated(0, -0.5 * heli->scaleFactor, 2 * heli->scaleFactor);
 	glRotated(45, 1, 0, 0);
 
-	gluCylinder(heli->quadric, 0, 500 * SCALE, TERRAIN_HEIGHT_WIDTH, 64, 64);
+	// Cull back face so no strange dark light beam behind (opacity issue)
+	glEnable(GL_CULL_FACE);
+	glCullFace(GL_BACK);
+
+	gluCylinder(heli->quadric, 0, 500 * SCALE, TERRAIN_HEIGHT_WIDTH, 360, 1);
+	glDisable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
 	glPopMatrix();
 }

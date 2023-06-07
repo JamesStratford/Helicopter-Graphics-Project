@@ -74,6 +74,8 @@ void drawParticle(Particle* particle)
 	{
 		glPushMatrix();
 		glTranslated(particle->coordinates.x, particle->coordinates.y, particle->coordinates.z);
+		glScaled(particle->scaleFactor, particle->scaleFactor, particle->scaleFactor);
+
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
@@ -117,8 +119,8 @@ void thinkParticles(ParticleSystem* pSystem, Terrain* ter)
 		if (particle->life > 0.0)
 		{
 			particle->life -= 1.0f;
-			particle->coordinates.x += pSystem->windDirection.x * particle->velocity * FRAME_TIME_SEC;
-			particle->coordinates.z += pSystem->windDirection.y * particle->velocity * FRAME_TIME_SEC;
+			particle->coordinates.x += pSystem->windDirection.x * particle->velocity * SCALE * FRAME_TIME_SEC;
+			particle->coordinates.z += pSystem->windDirection.y * particle->velocity * SCALE * FRAME_TIME_SEC;
 
 			if (ter->mesh)
 			{

@@ -76,11 +76,5 @@
     <None Include="shaders\heliShader.vert">
       <Filter>Source Files\shaders</Filter>
     </None>
-    <None Include="DesertTerrain.vert">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="DesertTerrain.frag">
-      <Filter>Source Files</Filter>
-    </None>
   </ItemGroup>
 </Project>

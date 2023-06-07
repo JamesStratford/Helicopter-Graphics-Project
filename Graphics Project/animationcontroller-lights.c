@@ -20,8 +20,6 @@
 #include "world.h"
 #include "particles.h"
 
-
-
  /******************************************************************************
   * Animation & Timing Setup
   ******************************************************************************/
@@ -186,6 +184,7 @@ WorldObject zebra;
 WorldObject tree_1;
 WorldObject tree_2;
 WorldObject tree_3;
+WorldObject helipad;
 
 Terrain terrain[TERRAIN_GRID_LEGNTH][TERRAIN_GRID_LEGNTH];
 Terrain objTerrain;
@@ -203,7 +202,7 @@ void main(int argc, char** argv)
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(windowWidth, windowHeight);
-	glutCreateWindow("Animation");
+	glutCreateWindow("21129223");
 
 	glewInit();
 	if (glewIsSupported("GL_VERSION_3_0"))
@@ -265,6 +264,7 @@ void display(void)
 
 	WorldObject* objs[] = { &zebra, &tree_1, &tree_2, &tree_3 };
 	drawOasisScene(objs, 4);
+	drawHelipad(&helipad);
 
 	for (unsigned int i = 1; i <= g_displayListIndex; i++)
 	{
@@ -546,7 +546,7 @@ void mouse(int button, int state, int x, int y)
 		if (button == 3 && state == GLUT_UP)
 			if (orthoLevel > 10.0) orthoLevel -= 10.0;
 		if (button == 4 && state == GLUT_UP)
-			if (orthoLevel < 100.0) orthoLevel += 10.0;
+			if (orthoLevel < 200.0) orthoLevel += 10.0;
 
 		glViewport(0, 0, windowWidth, windowHeight);
 		glMatrixMode(GL_PROJECTION);
@@ -575,9 +575,6 @@ void mouse(int button, int state, int x, int y)
  /*
 	 Initialise OpenGL and set up our scene before we begin the render loop.
  */
-
-
-
 void init(void)
 {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // Set the background color to black
@@ -594,6 +591,10 @@ void init(void)
 	glLoadIdentity(); // Load the identity matrix
 
 	// Anything that relies on lighting or specifies normals must be initialised after initLights.
+	initMoon(&moon);
+	initLights();
+	initSkybox(&skybox);
+
 	initHelicopter(&heli);
 
 	initParticleSystem(&pSystem);
@@ -604,27 +605,38 @@ void init(void)
 	Pos3 tree_1Pos;
 	Pos3 tree_2Pos;
 	Pos3 tree_3Pos;
+	Pos3 helipadPos;
 
 	zebraPos.z = 1800 * SCALE;
 	zebraPos.y = 25 * SCALE;
 	zebraPos.x = 1000 * SCALE;
+	GLfloat zebraRotation[] = { 0.0f, 180.0f, 0.0f };
 
 	tree_1Pos.z = 1850 * SCALE;
 	tree_1Pos.y = 0 * SCALE;
 	tree_1Pos.x = 1100 * SCALE;
+	GLfloat tree_1Rotation[] = { 0.0f, 45.0f, 0.0f };
 
 	tree_2Pos.z = 1750 * SCALE;
 	tree_2Pos.y = 0 * SCALE;
 	tree_2Pos.x = 900 * SCALE;
+	GLfloat tree_2Rotation[] = { 0.0f, 15.0f, 0.0f };
 
 	tree_3Pos.z = 1750 * SCALE;
 	tree_3Pos.y = 0 * SCALE;
 	tree_3Pos.x = 1100 * SCALE;
+	GLfloat tree_3Rotation[] = { 0.0f, -25.0f, 0.0f };
 
-	initWorldObject(&zebra, zebraPos, 5, 180, "zebra.obj", "zebra.mtl", "zebra_body.bmp");
-	initWorldObject(&tree_1, tree_1Pos, 20, 45, "Palm_Tree.obj", "Palm_Tree.mtl", "");
-	initWorldObject(&tree_2, tree_2Pos, 15, 15, "Palm_Tree.obj", "Palm_Tree.mtl", "");
-	initWorldObject(&tree_3, tree_3Pos, 25, -25, "Palm_Tree.obj", "Palm_Tree.mtl", "");
+	helipadPos.x = 1000 * SCALE;
+	helipadPos.y = 10 * SCALE;
+	helipadPos.z = 1000 * SCALE;
+	GLfloat helipadRotation[] = { 90.0f, 0.0f, 0.0f };
+
+	initWorldObject(&zebra, zebraPos, 5, zebraRotation, "zebra.obj", "zebra.mtl", "zebra_body.bmp");
+	initWorldObject(&tree_1, tree_1Pos, 20, tree_1Rotation, "Palm_Tree.obj", "Palm_Tree.mtl", NULL);
+	initWorldObject(&tree_2, tree_2Pos, 15, tree_2Rotation, "Palm_Tree.obj", "Palm_Tree.mtl", NULL);
+	initWorldObject(&tree_3, tree_3Pos, 25, tree_3Rotation, "Palm_Tree.obj", "Palm_Tree.mtl", NULL);
+	initWorldObject(&helipad, helipadPos, 100, helipadRotation, "helipad_h.obj", "helipad_h.mtl", "helipad.bmp");
 
 
 	GLdouble terrainSize = TERRAIN_GRID_SIZE * SCALE;
@@ -642,11 +654,6 @@ void init(void)
 		z = (int)(terrainSize / 2.0);
 		x += (int)terrainSize;
 	}
-
-
-	initMoon(&moon);
-	initSkybox(&skybox);
-	initLights();
 }
 
 /*
@@ -660,12 +667,9 @@ void init(void)
 void think(void)
 {
 	thinkHelicopter();
-	//int i = (heli.coordinates.x) / terrain[0][0].postSize;
-	//int k = (heli.coordinates.z) / terrain[0][0].postSize;
-	//Terrain* terrain_t = &terrain[i][k];
+
 	createParticleInRandomRadius(&pSystem, &objTerrain, &heli.coordinates, (GLfloat)(heli.size * 200.0f));
 	thinkParticles(&pSystem, &objTerrain);
-
 }
 
 /*
@@ -699,7 +703,7 @@ void initLights(void)
 	glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, direction);
 
 	GLfloat spot_cutoff = 90;
-	GLfloat spot_exponent = 2;
+	GLfloat spot_exponent = 1;
 
 	glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, spot_cutoff);
 	glLightf(GL_LIGHT0, GL_SPOT_EXPONENT, spot_exponent);
@@ -751,15 +755,6 @@ void diagnostics()
 	glRasterPos2d(orthoLevel / 20.0 * SCALE, -orthoLevel / 20.0 * 3.0 * SCALE);
 	glutBitmapString(GLUT_BITMAP_8_BY_13, heliZ);
 
-	if (checkCollisionSkybox(&skybox, &heli.coordinates))
-	{
-		// Print a "OUT OF BOUNDS" Message
-		glRasterPos2d(orthoLevel / 20.0, -orthoLevel / 20.0 * 4);
-		glutBitmapString(GLUT_BITMAP_8_BY_13, "OUT OF BOUNDS");
-		glRasterPos2d(orthoLevel / 20.0, -orthoLevel / 20.0 * 5);
-		glutBitmapString(GLUT_BITMAP_8_BY_13, "Press SPACE to reset");
-	}
-
 	glPopMatrix();
 }
 
@@ -769,10 +764,7 @@ void setCamera()
 	if (!freeCam)
 	{
 		eye_x = heli.coordinates.x + sin(heli.yaw * PI / 180.0) * 10.0;
-		//eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(heli.pitch * PI / 180.0) * 3.0;
 		eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(camPitch * PI / 180.0) * 3.0;
-
-		//eye_y = (heli.coordinates.y + heli.size * 0.2) + sin(45.0 * PI / 180.0) * 3.0;
 		eye_z = (heli.coordinates.z) + cos((heli.yaw + 180) * PI / 180.0) * 10.0;
 	}
 	else
@@ -831,7 +823,7 @@ void setCamera()
 
 void thinkHelicopterCollision(int* collidedWithTerrain, int* collidedWithSkybox)
 {
-	if (getCollisionTerrain(&objTerrain, &heli.coordinates, &heli.collisionBox))
+	if (getCollisionTerrain(&objTerrain, &heli.coordinates, &heli.collisionBox) || getCollisionHelipad(&helipad, &heli.coordinates, &heli.collisionBox))
 	{
 		*collidedWithTerrain = 1;
 
@@ -1049,10 +1041,5 @@ void switchLights(int on)
 		glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 180);
 	else
 		glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 90);
-}
-
-void cleanUp()
-{
-	freeTerrain();
 }
 

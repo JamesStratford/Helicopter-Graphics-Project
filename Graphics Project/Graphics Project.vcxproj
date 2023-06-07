@@ -39,8 +39,6 @@
     <ClInclude Include="texture-mapping.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="DesertTerrain.frag" />
-    <None Include="DesertTerrain.vert" />
     <None Include="shaders\heliShader.frag" />
     <None Include="shaders\heliShader.vert" />
   </ItemGroup>

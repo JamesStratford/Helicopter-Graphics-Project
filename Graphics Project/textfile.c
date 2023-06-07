@@ -35,8 +35,11 @@ char *textFileRead(char *fn) {
 
 			if (count > 0) {
 				content = (char *)malloc(sizeof(char) * (count+1));
-				count = fread(content,sizeof(char),count,fp);
-				content[count] = '\0';
+				if (content)
+				{
+					count = fread(content, sizeof(char), count, fp);
+					content[count] = '\0';
+				}
 			}
 			fclose(fp);
 		}
